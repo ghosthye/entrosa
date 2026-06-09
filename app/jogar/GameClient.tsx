@@ -229,6 +229,13 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
     setActiveSlotId(id);
     setErrors(0);
     setStatusMessage('');
+
+    // Rola a tela para o painel de busca no mobile
+    setTimeout(() => {
+      if (window.innerWidth < 768) {
+        document.getElementById('search-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handlePlayerSelect = async (player: PlayerSearchResult) => {
@@ -301,6 +308,13 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
         setFilledSlots(prev => ({ ...prev, [activeSlotId]: { id: player.id, name: player.name, country: player.team, overall: player.overall, face_url: player.face_url } }));
         setScore(score + newPoints);
         setErrors(0);
+        
+        // Rola de volta para cima no mobile para ver o campo
+        setTimeout(() => {
+          if (window.innerWidth < 768) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 100);
       } else {
         const newErrors = errors + 1;
         setErrors(newErrors);
@@ -454,7 +468,7 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
         <Field nodes={nodes2D} onSlotClick={handleSlotClick} errorNodeId={errorNodeId} />
       </div>
       
-      <div className="w-full md:w-[400px] lg:w-[480px] bg-background border-l-2 border-border-color p-6 flex flex-col h-screen overflow-y-auto">
+      <div id="search-panel" className="w-full md:w-[400px] lg:w-[480px] bg-background border-l-2 border-border-color p-6 flex flex-col h-screen overflow-y-auto">
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-3">
             <Link href="/">
