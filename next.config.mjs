@@ -2,6 +2,9 @@ const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
       '/api/**/*': ['./data/**/*'],
+      '/jogar': ['./data/**/*'],
+      '/duelo/**/*': ['./data/**/*'],
+      '/*': ['./data/**/*']
     },
     serverComponentsExternalPackages: ['better-sqlite3'],
   },
