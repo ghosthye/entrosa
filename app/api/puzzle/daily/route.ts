@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { getDailyPuzzle } from '@/lib/daily';
 import { getDb } from '@/lib/db';
 
