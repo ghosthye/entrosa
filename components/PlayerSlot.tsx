@@ -15,9 +15,10 @@ interface PlayerSlotProps {
   isError?: boolean;
   tooltipInfo?: string;
   faceUrl?: string | null;
+  errorCount?: number;
 }
 
-export function PlayerSlot({ status, positionLabel, playerName, playerCountry, playerYear, playerOvr, onClick, isError, tooltipInfo, faceUrl }: PlayerSlotProps) {
+export function PlayerSlot({ status, positionLabel, playerName, playerCountry, playerYear, playerOvr, onClick, isError, tooltipInfo, faceUrl, errorCount = 0 }: PlayerSlotProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   
   let bgClass = 'bg-verde-campo border-cinza-borda/30 opacity-60 hover:opacity-100 cursor-pointer';
@@ -44,14 +45,22 @@ export function PlayerSlot({ status, positionLabel, playerName, playerCountry, p
 
   return (
     <motion.div 
-      whileHover={(status === 'empty' || status === 'selected') ? { scale: 1.05 } : {}}
-      whileTap={(status === 'empty' || status === 'selected') ? { scale: 0.95 } : {}}
-      onClick={(status === 'empty' || status === 'selected') ? onClick : undefined}
+      whileHover={(status === 'empty' || status === 'selected' || status === 'filled') ? { scale: 1.05 } : {}}
+      whileTap={(status === 'empty' || status === 'selected' || status === 'filled') ? { scale: 0.95 } : {}}
+      onClick={(status === 'empty' || status === 'selected' || status === 'filled' || status === 'revealed') ? onClick : undefined}
       className={`relative w-24 h-28 sm:w-28 sm:h-32 rounded-lg flex flex-col items-center justify-center text-center p-2 transition-colors ${bgClass} ${borderClass}`}
     >
       <div className="text-xs font-mono font-bold text-white/60 mb-1 z-10 absolute top-1 left-1">
         {positionLabel}
       </div>
+
+      {(status === 'selected' || (status === 'empty' && errorCount > 0)) && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex gap-1 z-20 pointer-events-none">
+          {Array(3).fill(0).map((_, i) => (
+            <div key={i} className={`w-2 h-2 rounded-full ${i < errorCount ? 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]' : 'bg-[#1a1a1a] border border-[#3A3A3A] opacity-50'}`} />
+          ))}
+        </div>
+      )}
       
       {status === 'locked' && (
         <Lock className="w-5 h-5 sm:w-6 sm:h-6 text-white/30 mt-1" />

@@ -51,25 +51,25 @@ export function PlayerDetailsModal({ player, connections, removalCost, onRemove,
         animate={{ scale: 1, opacity: 1 }}
         className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_50px_rgba(234,179,8,0.15)]"
       >
-        <div className="p-6 relative flex flex-col items-center border-b border-[var(--border-color)] bg-[#0a0f0a]">
-          <button onClick={onClose} className="absolute top-4 right-4 text-secondary hover:text-primary transition-colors">
+        <div className="p-6 relative flex flex-col items-center border-b border-[var(--border-color)] bg-[var(--bg-background)]">
+          <button onClick={onClose} className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
             <X size={24} />
           </button>
           
           {player.face_url ? (
-            <img src={player.face_url} alt={player.name} className="w-24 h-24 object-contain mb-4 drop-shadow-lg" />
+            <img src={`/api/image?url=${encodeURIComponent(player.face_url)}`} alt={player.name} className="w-24 h-24 object-contain mb-4 drop-shadow-lg" />
           ) : (
             <div className="w-20 h-20 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-4xl mb-4 border-2 border-amarelo-gol shadow-lg">
               {player.name.charAt(0)}
             </div>
           )}
           
-          <h2 className="font-display text-3xl uppercase text-white text-center leading-tight mb-2">
+          <h2 className="font-display text-3xl uppercase text-[var(--text-primary)] text-center leading-tight mb-2">
             {player.name}
           </h2>
           
           <div className="flex gap-3">
-            <span className="text-xs font-bold px-3 py-1 bg-white/10 text-white rounded-full uppercase tracking-wider">
+            <span className="text-xs font-bold px-3 py-1 bg-cinza-leve text-[var(--text-primary)] border border-[var(--border-color)] rounded-full uppercase tracking-wider">
               {player.country}
             </span>
             {player.overall && (
@@ -80,21 +80,21 @@ export function PlayerDetailsModal({ player, connections, removalCost, onRemove,
           </div>
         </div>
 
-        <div className="p-6">
-          <h3 className="text-xs font-bold text-cinza-borda uppercase tracking-wider mb-4">Nota Fiscal de Entrosamento</h3>
+        <div className="p-6 text-[var(--text-primary)]">
+          <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-4">Nota Fiscal de Entrosamento</h3>
           
           {connections.length === 0 ? (
-            <div className="bg-cinza-leve rounded-lg p-4 text-center text-sm text-secondary italic">
+            <div className="bg-[var(--bg-background)] border border-[var(--border-color)] rounded-lg p-4 text-center text-sm text-[var(--text-secondary)] italic">
               Jogador inicial do desafio. Não requer conexões.
             </div>
           ) : (
             <div className="space-y-3 mb-6">
               {connections.map((conn, idx) => (
-                <div key={idx} className="bg-cinza-leve border border-border-color rounded-lg p-3 text-sm">
+                <div key={idx} className="bg-[var(--bg-background)] border border-[var(--border-color)] rounded-lg p-3 text-sm">
                   <div className="font-bold text-amarelo-gol mb-1">
                     Conexão com {conn.withName}
                   </div>
-                  <div className="text-secondary">
+                  <div className="text-[var(--text-primary)]">
                     {conn.detail}
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export function PlayerDetailsModal({ player, connections, removalCost, onRemove,
 
           <button
             onClick={onRemove}
-            className="w-full flex items-center justify-center gap-2 bg-red-950/40 hover:bg-red-900/60 text-vermelho-erro border border-vermelho-erro/30 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors mt-6"
+            className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-3 rounded-xl font-bold uppercase tracking-wider transition-colors mt-6 dark:bg-red-950/40 dark:text-red-500 dark:border-red-900/50 dark:hover:bg-red-900/60"
           >
             <UserMinus size={18} />
             Remover Jogador (-{removalCost} pts)

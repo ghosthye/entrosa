@@ -11,6 +11,7 @@ export interface FormationNode {
   playerOvr?: number;
   tooltipInfo?: string;
   faceUrl?: string | null;
+  errorCount?: number;
 }
 
 interface FieldProps {
@@ -49,6 +50,7 @@ export function Field({ nodes, onSlotClick, errorNodeId }: FieldProps) {
                 onClick={() => onSlotClick?.(node.id)}
                 tooltipInfo={node.tooltipInfo}
                 faceUrl={node.faceUrl}
+                errorCount={node.errorCount}
               />
             ))}
           </div>

@@ -4,16 +4,28 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
-import { Swords } from 'lucide-react';
+import { Swords, UserCircle2 } from 'lucide-react';
+import { useAuth } from '@/lib/useAuth';
 
 const formations = ['4-3-3', '4-4-2', '3-5-2', '4-2-3-1', '5-3-2'];
 
 export default function DueloCreatePage() {
   const router = useRouter();
-  const [name, setName] = useState('');
+  const { user } = useAuth();
+  
+  // Se o usuário já tem um nome no Supabase, usa por padrão
+  const defaultName = user && !user.is_anonymous ? user.user_metadata?.full_name?.split(' ')[0] : '';
+  const [name, setName] = useState(defaultName);
   const [formation, setFormation] = useState('4-3-3');
   const [difficulty, setDifficulty] = useState('Médio');
   const [isCreating, setIsCreating] = useState(false);
+
+  // Sincroniza caso o user carregue depois do componente
+  React.useEffect(() => {
+    if (user && !user.is_anonymous && !name) {
+      setName(user.user_metadata?.full_name?.split(' ')[0] || '');
+    }
+  }, [user]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,15 +79,27 @@ export default function DueloCreatePage() {
         <form onSubmit={handleCreate} className="space-y-6 relative z-10">
           <div>
             <label className="block text-sm font-bold text-secondary uppercase tracking-wider mb-2">Seu Nome / Apelido</label>
-            <input 
-              type="text" 
-              required
-              maxLength={20}
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full bg-background border-2 border-border-color rounded-xl px-4 py-3 text-lg font-bold text-primary focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="Ex: Tite"
-            />
+            {user && !user.is_anonymous ? (
+              <div className="flex items-center gap-3 bg-surface border-2 border-green-500/50 rounded-xl px-4 py-3">
+                {user.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} className="w-8 h-8 rounded-full" />
+                ) : (
+                  <UserCircle2 className="text-green-500" />
+                )}
+                <span className="text-lg font-bold text-primary">{name}</span>
+                <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full uppercase ml-auto">Logado</span>
+              </div>
+            ) : (
+              <input 
+                type="text" 
+                required
+                maxLength={20}
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full bg-background border-2 border-border-color rounded-xl px-4 py-3 text-lg font-bold text-primary focus:outline-none focus:border-blue-500 transition-colors"
+                placeholder="Ex: Tite"
+              />
+            )}
           </div>
 
           <div>

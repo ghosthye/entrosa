@@ -3,11 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
-import { Swords, Copy, CheckCircle2, Trophy, ArrowRight, Check } from 'lucide-react';
+import { Swords, Copy, CheckCircle2, Trophy, ArrowRight, Check, UserCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { Field } from '@/components/Field';
 import { formationsMap } from '@/lib/formations';
 import { DuelMatchSimulation } from '@/components/DuelMatchSimulation';
+import { useAuth } from '@/lib/useAuth';
 
 const buildNodes2D = (chain: any[], formation: string) => {
   const formationRows = formationsMap[formation] || formationsMap['4-3-3'];
@@ -38,13 +39,21 @@ export default function DuelLobbyPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { user } = useAuth();
   
   const [duel, setDuel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [challengerName, setChallengerName] = useState('');
+  const defaultName = user && !user.is_anonymous ? user.user_metadata?.full_name?.split(' ')[0] : '';
+  const [challengerName, setChallengerName] = useState(defaultName);
   const [copied, setCopied] = useState(false);
   const [isCreator, setIsCreator] = useState(false);
   const [isReadying, setIsReadying] = useState(false);
+
+  React.useEffect(() => {
+    if (user && !user.is_anonymous && !challengerName) {
+      setChallengerName(user.user_metadata?.full_name?.split(' ')[0] || '');
+    }
+  }, [user]);
 
   useEffect(() => {
     setIsCreator(localStorage.getItem(`duel_creator_${id}`) === 'true');
@@ -171,14 +180,25 @@ export default function DuelLobbyPage() {
               <form onSubmit={startChallenge} className="relative z-10 border-t-2 border-border-color pt-8">
                 <h3 className="font-bold text-primary text-xl mb-4">É você o desafiante?</h3>
                 <div className="flex flex-col gap-4">
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Digite seu nome para aceitar..."
-                    value={challengerName}
-                    onChange={e => setChallengerName(e.target.value)}
-                    className="w-full bg-background border-2 border-border-color rounded-xl px-4 py-4 text-lg font-bold text-primary focus:outline-none focus:border-red-500 transition-colors text-center"
-                  />
+                  {user && !user.is_anonymous ? (
+                    <div className="flex items-center gap-3 bg-surface border-2 border-green-500/50 rounded-xl px-4 py-4 justify-center">
+                      {user.user_metadata?.avatar_url ? (
+                        <img src={user.user_metadata.avatar_url} className="w-8 h-8 rounded-full" />
+                      ) : (
+                        <UserCircle2 className="text-green-500" />
+                      )}
+                      <span className="text-lg font-bold text-primary">Jogando como: {challengerName}</span>
+                    </div>
+                  ) : (
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Digite seu nome para aceitar..."
+                      value={challengerName}
+                      onChange={e => setChallengerName(e.target.value)}
+                      className="w-full bg-background border-2 border-border-color rounded-xl px-4 py-4 text-lg font-bold text-primary focus:outline-none focus:border-red-500 transition-colors text-center"
+                    />
+                  )}
                   <button 
                     type="submit"
                     disabled={!challengerName.trim()}

@@ -3,7 +3,7 @@ export interface GameState {
   chain: any[];
   filledSlots: Record<string, any>;
   score: number;
-  errors: number;
+  errors: Record<string, number>;
   blockedSlots: string[]; // Set can't be JSON serialized easily
 }
 
@@ -12,6 +12,10 @@ export interface UserStats {
   totalScore: number;
   playersUsed: Record<string, number>;
   connectionsUsed: Record<string, number>;
+  clubsUsed: Record<string, number>;
+  nationsUsed: Record<string, number>;
+  tacticsUsed: Record<string, number>;
+  flawlessPuzzles: number;
   lastPlayedDate: string; // ISO Date YYYY-MM-DD
   currentStreak: number;
   maxStreak: number;
@@ -54,6 +58,10 @@ export function loadUserStats(): UserStats {
     totalScore: 0,
     playersUsed: {},
     connectionsUsed: {},
+    clubsUsed: {},
+    nationsUsed: {},
+    tacticsUsed: {},
+    flawlessPuzzles: 0,
     lastPlayedDate: '',
     currentStreak: 0,
     maxStreak: 0,
@@ -111,4 +119,19 @@ export function getTopPlayer(stats: UserStats) {
 export function getTopConnection(stats: UserStats) {
   if (!stats.connectionsUsed || Object.keys(stats.connectionsUsed).length === 0) return null;
   return Object.entries(stats.connectionsUsed).sort((a, b) => b[1] - a[1])[0];
+}
+
+export function getTopClub(stats: UserStats) {
+  if (!stats.clubsUsed || Object.keys(stats.clubsUsed).length === 0) return null;
+  return Object.entries(stats.clubsUsed).sort((a, b) => b[1] - a[1])[0];
+}
+
+export function getTopNation(stats: UserStats) {
+  if (!stats.nationsUsed || Object.keys(stats.nationsUsed).length === 0) return null;
+  return Object.entries(stats.nationsUsed).sort((a, b) => b[1] - a[1])[0];
+}
+
+export function getTopTactic(stats: UserStats) {
+  if (!stats.tacticsUsed || Object.keys(stats.tacticsUsed).length === 0) return null;
+  return Object.entries(stats.tacticsUsed).sort((a, b) => b[1] - a[1])[0];
 }

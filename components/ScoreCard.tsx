@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useAuth } from '@/lib/useAuth';
 
 interface ScoreCardProps {
   score: number;
@@ -11,9 +12,24 @@ interface ScoreCardProps {
   nextTeaser?: string;
   streak?: number;
   isDuel?: boolean;
+  onPlayCopa?: () => void;
 }
 
-export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPlayFree, nextTeaser, streak, isDuel }: ScoreCardProps) {
+export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPlayFree, nextTeaser, streak, isDuel, onPlayCopa }: ScoreCardProps) {
+  const { user, signInWithGoogle } = useAuth();
+  const [rank, setRank] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (score > 0) {
+      fetch(`/api/ranking?score=${score}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.hypotheticalRank) setRank(data.hypotheticalRank);
+        })
+        .catch(console.error);
+    }
+  }, [score]);
+
   const percentage = Math.round((score / maxScorePossible) * 100) || 0;
   
   let rating = 'Iniciante';
@@ -68,13 +84,36 @@ export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPla
         </div>
       )}
 
+      {(!user || user.is_anonymous) && !isDuel && chainLength === 11 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6 text-left shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">🏆</span>
+            <h4 className="font-bold text-purple-900 text-lg leading-tight">
+              {rank ? `Seu score te coloca no Top ${rank} do Brasil!` : 'Não perca seu histórico!'}
+            </h4>
+          </div>
+          <p className="text-xs text-purple-800 mb-4">
+            Crie uma conta gratuita para eternizar seu nome no Ranking Global e não perder os seus dados.
+          </p>
+          <button 
+            onClick={signInWithGoogle}
+            className="w-full bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 px-4 border border-gray-300 rounded shadow-sm flex items-center justify-center gap-2 text-sm transition-transform active:scale-95"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            Salvar meu Score no Ranking
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
-        <button 
-          onClick={onShare}
-          className="w-full bg-amarelo-gol hover:bg-yellow-400 text-preto font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95"
-        >
-          Compartilhar Score
-        </button>
+        {chainLength === 11 && onPlayCopa && (
+          <button 
+            onClick={onPlayCopa}
+            className="w-full bg-amarelo-gol hover:bg-yellow-400 text-preto font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95 shadow-md flex items-center justify-center gap-2"
+          >
+            <span className="text-xl">🏆</span> Disputar Copa
+          </button>
+        )}
         {!isDuel && chainLength === 11 && (
           <Link href="/duelo">
             <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95 shadow-md">
