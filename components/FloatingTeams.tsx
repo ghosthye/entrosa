@@ -64,7 +64,7 @@ export function FloatingTeams() {
       {items.map(item => (
         <div
           key={item.id}
-          className="absolute whitespace-nowrap font-display text-amarelo-gol uppercase animate-float-bg"
+          className="absolute whitespace-nowrap font-display text-black dark:text-amarelo-gol uppercase animate-float-bg"
           style={{
             left: item.left,
             top: '100%',
