@@ -127,7 +127,7 @@ export function getConnections(playerAId: string, playerBId: string, activeRules
   if (hasRule('national_team_any_year')) {
     const teamsA = new Set(basicsA.map(b => b.team_name));
     const teamsB = new Set(basicsB.map(b => b.team_name));
-    const intersection = [...teamsA].filter(t => teamsB.has(t));
+    const intersection = Array.from(teamsA).filter(t => teamsB.has(t));
     if (intersection.length > 0 && !connections.some(c => c.type === 'national_team_same_year')) {
       connections.push({ type: 'national_team_any_year', points: 10, detail: `Jogaram pela mesma Seleção: ${intersection[0]}` });
     }
