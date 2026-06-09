@@ -117,14 +117,14 @@ export default function Home() {
              <div className="absolute top-0 right-0 w-32 h-32 bg-verde-campo/10 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-amarelo-gol/10 transition-colors"></div>
              <div className="text-4xl mb-4">🔗</div>
              <h3 className="font-bold text-xl mb-3 text-primary uppercase tracking-wide">O Entrosamento</h3>
-             <p className="text-secondary font-medium leading-relaxed">A regra de ouro: para escalar um novo jogador, ele precisa ter **ligação direta com pelo menos um jogador vizinho** já em campo. A química funciona por Seleção, Clube ou confrontos na Copa. Fez link com vários vizinhos ao mesmo tempo? Você ganha **bônus multiplicadores**!</p>
+             <p className="text-secondary font-medium leading-relaxed">A regra de ouro: para escalar um novo jogador, ele precisa ter <strong>ligação direta com pelo menos um jogador vizinho</strong> já em campo. A química funciona por Seleção, Clube ou confrontos na Copa. Fez link com vários vizinhos ao mesmo tempo? Você ganha <strong>bônus multiplicadores</strong>!</p>
           </div>
           
           <div className="bg-surface p-8 rounded-2xl border border-border-color shadow-lg hover:border-amarelo-gol/50 transition-colors relative overflow-hidden group">
              <div className="absolute top-0 right-0 w-32 h-32 bg-verde-campo/10 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-amarelo-gol/10 transition-colors"></div>
              <div className="text-4xl mb-4">🎯</div>
              <h3 className="font-bold text-xl mb-3 text-primary uppercase tracking-wide">A Teia Tática</h3>
-             <p className="text-secondary font-medium leading-relaxed">Você constrói o time como uma teia, escolhendo posições livres ao redor dos seus jogadores. Ficou sem saída ou quer testar um nome melhor para maximizar o Overall? **Clique em um jogador já escalado para removê-lo** (mas cuidado, custa 15 pontos do Score!).</p>
+             <p className="text-secondary font-medium leading-relaxed">Você constrói o time como uma teia, escolhendo posições livres ao redor dos seus jogadores. Ficou sem saída ou quer testar um nome melhor para maximizar o Overall? <strong>Clique em um jogador já escalado para removê-lo</strong> (mas cuidado, custa 15 pontos do Score!).</p>
           </div>
 
           <div className="bg-surface p-8 rounded-2xl border border-border-color shadow-lg hover:border-amarelo-gol/50 transition-colors relative overflow-hidden group">
