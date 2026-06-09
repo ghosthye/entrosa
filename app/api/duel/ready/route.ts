@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -9,10 +9,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    const db = getDb();
-    const row = db.prepare('SELECT settings FROM duels WHERE duel_id = ?').get(duelId) as any;
+    const { data: row, error } = await supabase
+      .from('duels')
+      .select('settings')
+      .eq('duel_id', duelId)
+      .single();
     
-    if (!row) return NextResponse.json({ error: 'Duel not found' }, { status: 404 });
+    if (error || !row) return NextResponse.json({ error: 'Duel not found' }, { status: 404 });
     
     const settings = JSON.parse(row.settings);
     if (role === 'creator') settings.creatorReady = true;
@@ -23,8 +26,12 @@ export async function POST(request: Request) {
       settings.matchStartTime = Date.now() + 3000;
     }
     
-    const stmt = db.prepare('UPDATE duels SET settings = ? WHERE duel_id = ?');
-    stmt.run(JSON.stringify(settings), duelId);
+    const { error: updateError } = await supabase
+      .from('duels')
+      .update({ settings: JSON.stringify(settings) })
+      .eq('duel_id', duelId);
+      
+    if (updateError) throw updateError;
 
     return NextResponse.json({ success: true, settings });
   } catch (error) {

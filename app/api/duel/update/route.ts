@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { simulateMatch } from '@/lib/simulation';
 
 export async function PUT(request: Request) {
@@ -10,23 +10,29 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    const db = getDb();
-    
     if (role === 'creator') {
-       const stmt = db.prepare(`
-         UPDATE duels 
-         SET creator_team_json = ?, creator_score = ?, status = 'pending'
-         WHERE duel_id = ? AND status = 'creating'
-       `);
-       const info = stmt.run(JSON.stringify(team), score, duelId);
-       if (info.changes === 0) return NextResponse.json({ error: 'Duel not found or already created' }, { status: 400 });
-       
+       const { error, count } = await supabase
+         .from('duels')
+         .update({ 
+           creator_team_json: JSON.stringify(team), 
+           creator_score: score, 
+           status: 'pending' 
+         })
+         .eq('duel_id', duelId)
+         .eq('status', 'creating');
+
+       if (error || count === 0) return NextResponse.json({ error: 'Duel not found or already created' }, { status: 400 });
     } else if (role === 'challenger') {
        if (!playerName) return NextResponse.json({ error: 'Challenger name required' }, { status: 400 });
        
        // Fetch creator's team and current settings to run the simulation
-       const row = db.prepare('SELECT creator_team_json, creator_score, settings FROM duels WHERE duel_id = ?').get(duelId) as any;
-       if (!row) return NextResponse.json({ error: 'Duel not found' }, { status: 400 });
+       const { data: row, error: fetchError } = await supabase
+         .from('duels')
+         .select('creator_team_json, creator_score, settings')
+         .eq('duel_id', duelId)
+         .single();
+         
+       if (fetchError || !row) return NextResponse.json({ error: 'Duel not found' }, { status: 400 });
        
        const creatorTeam = JSON.parse(row.creator_team_json);
        const settings = JSON.parse(row.settings);
@@ -46,13 +52,19 @@ export async function PUT(request: Request) {
        settings.creatorReady = false;
        settings.challengerReady = false;
        
-       const stmt = db.prepare(`
-         UPDATE duels 
-         SET challenger_name = ?, challenger_team_json = ?, challenger_score = ?, status = 'finished', settings = ?
-         WHERE duel_id = ? AND status = 'pending'
-       `);
-       const info = stmt.run(playerName, JSON.stringify(team), score, JSON.stringify(settings), duelId);
-       if (info.changes === 0) return NextResponse.json({ error: 'Duel not found or already finished' }, { status: 400 });
+       const { error: updateError, count } = await supabase
+         .from('duels')
+         .update({ 
+           challenger_name: playerName, 
+           challenger_team_json: JSON.stringify(team), 
+           challenger_score: score, 
+           status: 'finished', 
+           settings: JSON.stringify(settings) 
+         })
+         .eq('duel_id', duelId)
+         .eq('status', 'pending');
+
+       if (updateError || count === 0) return NextResponse.json({ error: 'Duel not found or already finished' }, { status: 400 });
     } else {
        return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
