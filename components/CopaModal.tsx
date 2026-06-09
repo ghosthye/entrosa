@@ -79,7 +79,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
     const idA = a.slotId ? parseInt(a.slotId.replace('slot-', '')) : 0;
     const idB = b.slotId ? parseInt(b.slotId.replace('slot-', '')) : 0;
     return idB - idA; // higher slotId (ata) first
-  }).map(n => n.player.name ? n.player.name.split(' ').pop() : 'Jogador');
+  }).map(n => n.player.name ? (n.player.name.split(' ').pop() || 'Jogador') : 'Jogador') as string[];
 
   useEffect(() => {
     fetch('/api/opponents')
