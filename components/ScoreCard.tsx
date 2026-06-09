@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 interface ScoreCardProps {
   score: number;
@@ -7,9 +8,12 @@ interface ScoreCardProps {
   chainLength: number;
   onShare: () => void;
   onPlayFree: () => void;
+  nextTeaser?: string;
+  streak?: number;
+  isDuel?: boolean;
 }
 
-export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPlayFree }: ScoreCardProps) {
+export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPlayFree, nextTeaser, streak, isDuel }: ScoreCardProps) {
   const percentage = Math.round((score / maxScorePossible) * 100) || 0;
   
   let rating = 'Iniciante';
@@ -30,7 +34,14 @@ export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPla
           <p className="text-sm font-bold text-cinza-borda mb-2 uppercase tracking-wide">Você ficou encurralado sem conexões adjacentes!</p>
         </>
       ) : (
-        <h2 className="font-display text-3xl sm:text-4xl mb-2 text-verde-campo uppercase">Sua Seleção</h2>
+        <>
+          <h2 className="font-display text-3xl sm:text-4xl mb-2 text-verde-campo uppercase">Sua Seleção</h2>
+          {streak && streak > 0 ? (
+            <div className="inline-flex items-center gap-1 bg-orange-100 text-orange-600 font-bold px-3 py-1 rounded-full text-sm mb-2 shadow-sm border border-orange-200">
+              🔥 {streak} {streak === 1 ? 'dia seguido' : 'dias seguidos'}
+            </div>
+          ) : null}
+        </>
       )}
       
       <div className="my-6">
@@ -40,8 +51,8 @@ export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPla
         <div className="text-xs sm:text-sm text-cinza-borda font-bold uppercase mt-1 tracking-wider">Pontos</div>
       </div>
 
-      <div className="bg-cinza-leve rounded-lg p-4 mb-6 text-sm">
-        <div className="flex justify-between items-center mb-2">
+      <div className="bg-cinza-leve rounded-lg p-4 mb-6 text-sm flex flex-col gap-2">
+        <div className="flex justify-between items-center">
           <span className="font-bold text-cinza-borda">Ranking:</span>
           <span className="font-bold text-preto">{rating}</span>
         </div>
@@ -50,6 +61,12 @@ export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPla
           <span className="font-bold text-preto">{chainLength} / 11</span>
         </div>
       </div>
+      
+      {nextTeaser && chainLength === 11 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+          <p className="text-xs text-blue-800 font-bold italic">{nextTeaser}</p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
         <button 
@@ -58,12 +75,21 @@ export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPla
         >
           Compartilhar Score
         </button>
-        <button 
-          onClick={onPlayFree}
-          className="w-full bg-verde-campo hover:bg-[#124d29] text-branco font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95"
-        >
-          Jogar Modo Livre
-        </button>
+        {!isDuel && chainLength === 11 && (
+          <Link href="/duelo">
+            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95 shadow-md">
+              ⚔️ Desafiar Amigo
+            </button>
+          </Link>
+        )}
+        {!isDuel && (
+          <button 
+            onClick={onPlayFree}
+            className="w-full bg-verde-campo hover:bg-[#124d29] text-branco font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95"
+          >
+            Jogar Modo Livre
+          </button>
+        )}
       </div>
     </motion.div>
   );

@@ -32,5 +32,11 @@ export default function JogarPage() {
     face_url: playerRecord?.face_url || null,
   };
 
-  return <GameClient puzzle={puzzle} startingPlayer={startingPlayer} mode="puzzle" />;
+  const tomorrowStr = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const nextPuzzle = getDailyPuzzle(tomorrowStr);
+  const nextPlayerRecord = stmt.get(nextPuzzle.startingPlayerId) as any;
+  const nextCountry = nextPlayerRecord ? nextPlayerRecord.team_name : 'desconhecido';
+  const nextTeaser = `Próximo puzzle em breve — começa com um craque de: ${nextCountry} ⏳`;
+
+  return <GameClient puzzle={puzzle} startingPlayer={startingPlayer} mode="puzzle" nextTeaser={nextTeaser} />;
 }

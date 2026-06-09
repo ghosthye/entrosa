@@ -15,10 +15,19 @@ export interface MatchEvent {
   scorerName?: string;
 }
 
+export interface PenaltyShootout {
+  playerScore: number;
+  opponentScore: number;
+  playerHistory: boolean[];
+  opponentHistory: boolean[];
+  winner: 'player' | 'opponent';
+}
+
 export interface MatchResult {
   playerGoals: number;
   opponentGoals: number;
   events: MatchEvent[];
+  penalties?: PenaltyShootout;
 }
 
 function getRandomScorer(names: string[]): string {
@@ -34,7 +43,8 @@ export function simulateMatch(
   playerTeamOverall: number, 
   opponentTeamOverall: number,
   playerNames: string[] = [],
-  opponentNames: string[] = []
+  opponentNames: string[] = [],
+  requireWinner: boolean = false
 ): MatchResult {
   const events: MatchEvent[] = [];
   let playerGoals = 0;
@@ -77,5 +87,61 @@ export function simulateMatch(
     }
   }
 
-  return { playerGoals, opponentGoals, events };
+  let penalties: PenaltyShootout | undefined = undefined;
+
+  if (requireWinner && playerGoals === opponentGoals) {
+    let pScore = 0;
+    let oScore = 0;
+    const pHistory: boolean[] = [];
+    const oHistory: boolean[] = [];
+    let round = 1;
+    let turn: 'player' | 'opponent' = 'player';
+    let isGameOver = false;
+
+    const pProb = 0.75 + (diff * 0.01);
+    const oProb = 0.75 - (diff * 0.01);
+    
+    while (!isGameOver) {
+      if (turn === 'player') {
+        const goal = Math.random() < Math.max(0.4, Math.min(0.95, pProb));
+        pHistory.push(goal);
+        if (goal) pScore++;
+      } else {
+        const goal = Math.random() < Math.max(0.4, Math.min(0.95, oProb));
+        oHistory.push(goal);
+        if (goal) oScore++;
+      }
+      
+      if (turn === 'opponent') {
+        if (round <= 5) {
+          const remaining = 5 - round;
+          if (pScore > oScore + remaining) isGameOver = true;
+          if (oScore > pScore + remaining) isGameOver = true;
+        } else {
+          if (pScore !== oScore) isGameOver = true;
+        }
+        if (!isGameOver) {
+          round++;
+          turn = 'player';
+        }
+      } else {
+        if (round <= 5) {
+          const pRemaining = 5 - round;
+          const oRemaining = 5 - round + 1;
+          if (pScore > oScore + oRemaining) isGameOver = true;
+          if (oScore > pScore + pRemaining) isGameOver = true;
+        }
+        if (!isGameOver) turn = 'opponent';
+      }
+    }
+    penalties = {
+      playerScore: pScore,
+      opponentScore: oScore,
+      playerHistory: pHistory,
+      opponentHistory: oHistory,
+      winner: pScore > oScore ? 'player' : 'opponent'
+    };
+  }
+
+  return { playerGoals, opponentGoals, events, penalties };
 }

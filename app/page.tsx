@@ -32,6 +32,13 @@ export default function Home() {
   const playerCountry = playerRecord?.team_name || 'Desconhecido';
   const faceUrl = playerRecord?.face_url || null;
 
+  // Fetch tomorrow's teaser
+  const tomorrowStr = new Date(todayDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const nextPuzzle = getDailyPuzzle(tomorrowStr);
+  const nextPlayerRecord = stmt.get(nextPuzzle.startingPlayerId) as any;
+  const nextCountry = nextPlayerRecord ? nextPlayerRecord.team_name : 'desconhecido';
+  const nextTeaser = `O craque de amanhã é da seleção de ${nextCountry}!`;
+
   return (
     <main className="min-h-screen bg-background flex flex-col items-center p-4 sm:p-8 relative overflow-hidden transition-colors">
       <FloatingTeams />
@@ -57,6 +64,9 @@ export default function Home() {
             </Link>
             <Link href="/livre" className="bg-surface text-primary font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-surface/80 transition-colors uppercase tracking-wider text-center border-2 border-border-color">
               Modo Livre
+            </Link>
+            <Link href="/duelo" className="bg-blue-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors uppercase tracking-wider text-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+              Duelo Online
             </Link>
           </div>
         </div>

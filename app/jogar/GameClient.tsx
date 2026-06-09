@@ -9,15 +9,10 @@ import { Settings, X, Moon, Sun, Trophy } from 'lucide-react';
 import { ConnectionRule, PRESETS } from '@/lib/rules';
 import { useTheme } from 'next-themes';
 import { CopaModal } from '@/components/CopaModal';
+import { PlayerDetailsModal } from '@/components/PlayerDetailsModal';
 import Link from 'next/link';
-
-const formationsMap: Record<string, string[][]> = {
-  '4-3-3': [['ATA', 'ATA', 'ATA'], ['MEI', 'MEI', 'MEI'], ['LAT', 'ZAG', 'ZAG', 'LAT'], ['GOL']],
-  '4-4-2': [['ATA', 'ATA'], ['MEI', 'MEI', 'MEI', 'MEI'], ['LAT', 'ZAG', 'ZAG', 'LAT'], ['GOL']],
-  '3-5-2': [['ATA', 'ATA'], ['MEI', 'MEI', 'MEI', 'MEI', 'MEI'], ['ZAG', 'ZAG', 'ZAG'], ['GOL']],
-  '4-2-3-1': [['ATA'], ['MEI', 'MEI', 'MEI'], ['MEI', 'MEI'], ['LAT', 'ZAG', 'ZAG', 'LAT'], ['GOL']],
-  '5-3-2': [['ATA', 'ATA'], ['MEI', 'MEI', 'MEI'], ['LAT', 'ZAG', 'ZAG', 'ZAG', 'LAT'], ['GOL']],
-};
+import { loadGameState, saveGameState, clearGameState, updateDailyStreak, updateUserStats, loadUserStats } from '@/lib/storage';
+import { formationsMap } from '@/lib/formations';
 
 interface GameClientProps {
   mode: 'puzzle' | 'livre';
@@ -34,6 +29,10 @@ interface GameClientProps {
     overall?: number;
     face_url?: string | null;
   };
+  nextTeaser?: string;
+  onDuelComplete?: (chain: any[], score: number) => void;
+  isDuel?: boolean;
+  initialDifficulty?: string;
 }
 
 const isPositionMatch = (dbPos: string, uiPos: string) => {
@@ -49,7 +48,7 @@ interface GameChainNode extends ChainNode {
   slotId: string;
 }
 
-export default function GameClient({ puzzle, startingPlayer, mode }: GameClientProps) {
+export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, onDuelComplete, isDuel, initialDifficulty }: GameClientProps) {
   const [currentFormation, setCurrentFormation] = useState(puzzle.formation);
   const formationRows = formationsMap[currentFormation] || formationsMap['4-3-3'];
   
@@ -101,19 +100,62 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
   const [validating, setValidating] = useState(false);
   const [errorNodeId, setErrorNodeId] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [showCopaModal, setShowCopaModal] = useState(false);
+  const [selectedPlayerForDetails, setSelectedPlayerForDetails] = useState<string | null>(null);
   
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [removalCount, setRemovalCount] = useState(0);
+  const [userStreak, setUserStreak] = useState(0);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // Carregar progresso salvo (apenas no modo puzzle diário)
+    if (mode === 'puzzle') {
+      const stats = loadUserStats();
+      setUserStreak(stats.currentStreak);
+      
+      const saved = loadGameState(puzzle.puzzleNumber);
+      if (saved) {
+        setChain(saved.chain);
+        setFilledSlots(saved.filledSlots);
+        setScore(saved.score);
+        setErrors(saved.errors);
+        setBlockedSlots(new Set(saved.blockedSlots));
+      }
+    }
+  }, [mode, puzzle.puzzleNumber]);
+
+  useEffect(() => {
+    // Salva o progresso a cada alteração (apenas se montado e modo puzzle)
+    if (mounted && mode === 'puzzle' && chain.length > 0) {
+      saveGameState({
+        puzzleNumber: puzzle.puzzleNumber,
+        chain,
+        filledSlots,
+        score,
+        errors,
+        blockedSlots: Array.from(blockedSlots)
+      });
+    }
+  }, [chain, filledSlots, score, errors, blockedSlots, mounted, mode, puzzle.puzzleNumber]);
+
+  useEffect(() => {
+    if (isGameOver && chain.length === slotDefinitions.length && mode === 'puzzle') {
+      // Registrar vitória e estatísticas
+      updateDailyStreak();
+      clearGameState(); // Limpar save para não recarregar no dia seguinte se for o mesmo puzzle
+      const stats = loadUserStats();
+      setUserStreak(stats.currentStreak);
+    }
+  }, [isGameOver, chain.length, slotDefinitions.length, mode]);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [difficulty, setDifficulty] = useState<string>('Difícil');
-  const [customRules, setCustomRules] = useState<ConnectionRule[]>(PRESETS['Difícil'] as ConnectionRule[]);
+  const [hasStarted, setHasStarted] = useState((mode === 'puzzle' || isDuel) ? true : false);
+  const [difficulty, setDifficulty] = useState<string>(initialDifficulty || 'Difícil');
+  const [customRules, setCustomRules] = useState<ConnectionRule[]>(PRESETS[(initialDifficulty as keyof typeof PRESETS) || 'Difícil'] as ConnectionRule[]);
 
   const activeRules = difficulty === 'Custom' ? customRules : (PRESETS[difficulty as keyof typeof PRESETS] || PRESETS['Difícil']);
 
@@ -142,6 +184,30 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
     setScore(0);
     setErrors(0);
     setStatusMessage('');
+    setRemovalCount(0);
+  };
+
+  const handleClearTeam = () => {
+    if (!confirm("Tem certeza que deseja remover todos os jogadores e limpar o time?")) return;
+    
+    if (startingPlayer && initialSlotIndex > -1) {
+      const startSlot = slotDefinitions[initialSlotIndex].id;
+      setChain([{
+        player: startingPlayer,
+        slotId: startSlot,
+        connections: []
+      }]);
+      setFilledSlots({ [startSlot]: { name: startingPlayer.name, country: startingPlayer.country, id: startingPlayer.id, overall: startingPlayer.overall, face_url: startingPlayer.face_url } });
+    } else {
+      setChain([]);
+      setFilledSlots({});
+    }
+    setBlockedSlots(new Set());
+    setActiveSlotId('');
+    setStatusMessage('');
+    setErrors(0);
+    // Podemos reduzir bastante o score ou zerar
+    setScore(Math.max(0, score - 100));
   };
 
   const isAdjacent = (defA: any, defB: any) => {
@@ -202,21 +268,8 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
     if (isGameOver || validating) return;
     
     if (filledSlots[id]) {
-      // Allow removal if it's not the starting player
-      if (startingPlayer && id === slotDefinitions[initialSlotIndex > -1 ? initialSlotIndex : 0].id) {
-         setStatusMessage("O jogador inicial não pode ser removido!");
-         return;
-      }
-      
-      if (confirm(`Remover ${filledSlots[id].name} e tentar outro jogador no lugar? Você perderá 15 pontos.`)) {
-         const newFilled = { ...filledSlots };
-         delete newFilled[id];
-         setFilledSlots(newFilled);
-         setScore(Math.max(0, score - 15));
-         setChain(chain.filter(c => c.slotId !== id));
-         setActiveSlotId('');
-         setStatusMessage('');
-      }
+      // Abre o modal de detalhes
+      setSelectedPlayerForDetails(id);
       return;
     }
     
@@ -229,6 +282,7 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
     setActiveSlotId(id);
     setErrors(0);
     setStatusMessage('');
+    setSuccessMessage('');
 
     // Rola a tela para o painel de busca no mobile
     setTimeout(() => {
@@ -251,6 +305,7 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
     setValidating(true);
     setErrorNodeId(undefined);
     setStatusMessage('');
+    setSuccessMessage('');
 
     try {
       if (Object.keys(filledSlots).length === 0) {
@@ -309,6 +364,29 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
         setScore(score + newPoints);
         setErrors(0);
         
+        // Exibir mensagem de sucesso explicando as conexões
+        const names = successfulValidations.map(v => v.fPlayerName.split(' ').pop()).join(', ');
+        setSuccessMessage(`✅ Link c/ ${names}! +${newPoints} pts`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+        
+        // Atualizar stats de conexões no perfil
+        if (mode === 'puzzle') {
+          updateUserStats(prev => {
+            const newConnUsed = { ...prev.connectionsUsed };
+            successfulValidations.forEach(v => {
+              newConnUsed[v.connection.type] = (newConnUsed[v.connection.type] || 0) + 1;
+            });
+            const newPlayersUsed = { ...prev.playersUsed };
+            newPlayersUsed[player.name] = (newPlayersUsed[player.name] || 0) + 1;
+            
+            return {
+              ...prev,
+              connectionsUsed: newConnUsed,
+              playersUsed: newPlayersUsed
+            };
+          });
+        }
+        
         // Rola de volta para cima no mobile para ver o campo
         setTimeout(() => {
           if (window.innerWidth < 768) {
@@ -342,6 +420,51 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
     text += ` — ${score} pts\n\n`;
     alert("Copiado para a área de transferência!\n\n" + text);
   };
+  
+  const handleBuyHint = async () => {
+    if (score < 20) {
+      setStatusMessage("Você precisa de pelo menos 20 pontos para comprar uma dica.");
+      return;
+    }
+    
+    if (!confirm("Gastar 20 pontos para obter uma dica para a posição atual?")) return;
+    
+    setValidating(true);
+    try {
+      const adjacentFilledIds = Object.keys(filledSlots).filter(fId => {
+        const fDef = slotDefinitions.find(d => d.id === fId);
+        return isAdjacent(activeSlotDef, fDef);
+      });
+      
+      const adjacentPlayers = adjacentFilledIds.map(fId => filledSlots[fId].id);
+      const boardPlayers = Object.values(filledSlots).map(f => f.id);
+      
+      const res = await fetch('/api/hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          adjacentPlayers, 
+          boardPlayers, 
+          activeRules,
+          targetPosition: activeSlotDef?.position 
+        })
+      });
+      const data = await res.json();
+      
+      if (data.hint) {
+        setScore(Math.max(0, score - 20));
+        setStatusMessage(`💡 Dica: Melhor jogador disponível começa com "${data.hint.letters}" (${data.hint.country})`);
+      } else {
+        setStatusMessage("❌ Não foi possível encontrar uma dica para esta posição com as regras atuais.");
+      }
+    } catch (e) {
+      setStatusMessage("Erro ao buscar dica.");
+    } finally {
+      setValidating(false);
+    }
+  };
+
+
 
   const nodes2D = useMemo(() => {
     const grid: any[][] = formationRows.map(row => row.map(() => null));
@@ -494,13 +617,15 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
               <span>{puzzle.formation}</span>
             )}
             
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="p-2 hover:bg-[var(--bg-surface)] rounded-full transition-colors ml-2"
-              title="Configurações e Dificuldade"
-            >
-              <Settings className="w-5 h-5 text-secondary hover:text-primary" />
-            </button>
+            {!isDuel && (
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="p-2 hover:bg-[var(--bg-surface)] rounded-full transition-colors ml-2"
+                title="Configurações e Dificuldade"
+              >
+                <Settings className="w-5 h-5 text-secondary hover:text-primary" />
+              </button>
+            )}
             
             {mounted && (
               <button
@@ -512,7 +637,10 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
               </button>
             )}
           </div>
-          <span>Score: <span className="text-amarelo-gol text-lg">{score}</span></span>
+          <div className="flex items-center gap-2">
+
+            <span>Score: <span className="text-amarelo-gol text-lg">{score}</span></span>
+          </div>
         </div>
 
         {!isGameOver ? (
@@ -539,16 +667,38 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
               {statusMessage && (
                 <div className="text-vermelho-erro font-bold text-sm mb-2 p-2 bg-red-50 rounded border border-red-200">{statusMessage}</div>
               )}
+              {successMessage && (
+                <div className="text-verde-grama font-bold text-sm mb-2 p-2 bg-green-50 rounded border border-green-200 animate-pulse">{successMessage}</div>
+              )}
               
-              <SearchInput 
-                onSelect={handlePlayerSelect} 
-                disabled={validating || !activeSlotDef}
-                showOverall={difficulty !== 'Difícil'} 
-              />
+              <div className="flex gap-2 mb-4">
+                <SearchInput 
+                  onSelect={handlePlayerSelect} 
+                  disabled={validating || !activeSlotDef}
+                  showOverall={difficulty !== 'Difícil'} 
+                />
+                {activeSlotDef && (
+                  <button 
+                    onClick={handleBuyHint}
+                    disabled={validating || score < 20}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap text-sm flex items-center gap-1 shadow-sm border-2 border-purple-800"
+                    title="Custa 20 pontos"
+                  >
+                    💡 DICA
+                  </button>
+                )}
+              </div>
             </div>
             
             <div className="flex-1 flex flex-col justify-end">
-              <h3 className="font-bold text-cinza-borda mb-2 uppercase text-xs tracking-wider">Seu Caminho Atual</h3>
+              <div className="flex justify-between items-end mb-2">
+                <h3 className="font-bold text-cinza-borda uppercase text-xs tracking-wider">Seu Caminho Atual</h3>
+                {chain.length > 1 && (
+                  <button onClick={handleClearTeam} className="text-xs font-bold text-vermelho-erro hover:text-red-400 uppercase tracking-wide flex items-center gap-1">
+                    <X size={14} /> Limpar Time
+                  </button>
+                )}
+              </div>
               <div className="bg-cinza-leve rounded-xl p-2 min-h-[120px]">
                  {chain.length > 0 ? (
                    <ChainBar nodes={chain} />
@@ -568,14 +718,26 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
               chainLength={chain.length}
               onShare={handleShare}
               onPlayFree={() => window.location.href = '/livre'}
+              nextTeaser={nextTeaser}
+              streak={userStreak}
+              isDuel={isDuel}
             />
             {Object.keys(filledSlots).length === 11 && (
-              <button 
-                onClick={() => setShowCopaModal(true)}
-                className="w-full max-w-sm py-4 bg-verde-campo text-white border-4 border-verde-grama font-bold text-xl rounded-xl hover:bg-verde-grama transition-colors uppercase tracking-wider shadow-[0_10px_30px_rgba(26,107,58,0.4)] flex items-center justify-center gap-3 animate-pulse"
-              >
-                <Trophy size={28} /> DISPUTAR COPA
-              </button>
+              onDuelComplete ? (
+                <button 
+                  onClick={() => onDuelComplete(chain, score)}
+                  className="w-full max-w-sm py-4 bg-blue-600 text-white border-4 border-blue-800 font-bold text-xl rounded-xl hover:bg-blue-700 transition-colors uppercase tracking-wider shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex items-center justify-center gap-3 animate-pulse"
+                >
+                  <Trophy size={28} /> CONFIRMAR ESQUADRÃO
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setShowCopaModal(true)}
+                  className="w-full max-w-sm py-4 bg-verde-campo text-white border-4 border-verde-grama font-bold text-xl rounded-xl hover:bg-verde-grama transition-colors uppercase tracking-wider shadow-[0_10px_30px_rgba(26,107,58,0.4)] flex items-center justify-center gap-3 animate-pulse"
+                >
+                  <Trophy size={28} /> DISPUTAR COPA
+                </button>
+              )
             )}
           </div>
         )}
@@ -665,6 +827,31 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
           playerTeam={chain} 
           nodes2D={nodes2D}
           onClose={() => setShowCopaModal(false)} 
+        />
+      )}
+
+      {selectedPlayerForDetails && filledSlots[selectedPlayerForDetails] && (
+        <PlayerDetailsModal
+          player={filledSlots[selectedPlayerForDetails]}
+          connections={chain.find(c => c.slotId === selectedPlayerForDetails)?.connections || []}
+          removalCost={[15, 25, 40, 60, 90][Math.min(removalCount, 4)]}
+          onClose={() => setSelectedPlayerForDetails(null)}
+          onRemove={() => {
+            if (startingPlayer && selectedPlayerForDetails === slotDefinitions[initialSlotIndex > -1 ? initialSlotIndex : 0].id) {
+              alert("O jogador inicial não pode ser removido!");
+              return;
+            }
+            const cost = [15, 25, 40, 60, 90][Math.min(removalCount, 4)];
+            const newFilled = { ...filledSlots };
+            delete newFilled[selectedPlayerForDetails];
+            setFilledSlots(newFilled);
+            setScore(Math.max(0, score - cost));
+            setChain(chain.filter(c => c.slotId !== selectedPlayerForDetails));
+            setActiveSlotId('');
+            setStatusMessage('');
+            setRemovalCount(r => r + 1);
+            setSelectedPlayerForDetails(null);
+          }}
         />
       )}
     </div>
