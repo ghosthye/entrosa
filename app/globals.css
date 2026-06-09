@@ -3,25 +3,56 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Common branding */
+  --verde-campo: #1a6b3a;
+  --verde-grama: #1D9E75;
+  --amarelo-gol: #F5C400;
+  --vermelho-erro: #E24B4A;
+  --azul-info: #378ADD;
+
+  /* Semantic UI - Light Mode Default */
+  --bg-background: #FAFAF8;
+  --bg-surface: #F1EFE8;
+  --border-color: #D3D1C7;
+  --text-primary: #0F0F0D;
+  --text-secondary: #4b5563;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  /* Semantic UI - Dark Mode */
+  --bg-background: #0F0F0D;
+  --bg-surface: #1a1a1a;
+  --border-color: #333333;
+  --text-primary: #FAFAF8;
+  --text-secondary: #D3D1C7;
+  color-scheme: dark;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  background-color: var(--bg-background);
+  transition: background-color 0.2s, color 0.2s;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes float-up-bg {
+  0% { transform: translateY(10vh); }
+  100% { transform: translateY(-120vh); }
+}
+
+.animate-float-bg {
+  animation: float-up-bg linear infinite;
 }

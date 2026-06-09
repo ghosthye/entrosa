@@ -34,3 +34,27 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scripts de importacao (dados locais, nao precisam ir pro repo)
+import_2026.js
+import_faces.js
+download_kaggle.py
+fix_icons.js
+find_icons.js
+query_db.js
+
+# arquivos de teste/debug
+test_db.js
+test_csv.js
+test_http.js
+test_sofifa.js
+test_validate.js
+test_wiki.js
+test.ts
+test-connections.ts
+
+# spec local
+goleada_spec.md
+
+# banco de dados duplicado na raiz
+worldcup.db
