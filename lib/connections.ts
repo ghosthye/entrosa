@@ -149,7 +149,7 @@ export function getConnections(playerAId: string, playerBId: string, activeRules
   if (hasRule('same_cup')) {
     const yearsA = new Set(basicsA.map(b => b.year));
     const yearsB = new Set(basicsB.map(b => b.year));
-    const intersection = [...yearsA].filter(y => yearsB.has(y));
+    const intersection = Array.from(yearsA).filter(y => yearsB.has(y));
     if (intersection.length > 0 && !connections.some(c => c.type === 'national_team_same_year' || c.type === 'opponent_same_match' || c.type === 'club_same_year')) {
       connections.push({ type: 'same_cup', points: 8, detail: `Disputaram a mesma edição da Copa: ${intersection[0]}` });
     }
@@ -159,7 +159,7 @@ export function getConnections(playerAId: string, playerBId: string, activeRules
   if (hasRule('same_continent')) {
     const regionsA = new Set(basicsA.map(b => b.region_name));
     const regionsB = new Set(basicsB.map(b => b.region_name));
-    const intersection = [...regionsA].filter(r => regionsB.has(r));
+    const intersection = Array.from(regionsA).filter(r => regionsB.has(r));
     if (intersection.length > 0 && !connections.some(c => c.type === 'national_team_same_year' || c.type === 'national_team_any_year')) {
       connections.push({ type: 'same_continent', points: 2, detail: `Nascidos no mesmo Continente: ${intersection[0]}` });
     }
@@ -169,7 +169,7 @@ export function getConnections(playerAId: string, playerBId: string, activeRules
   if (hasRule('same_position')) {
     const posA = new Set(basicsA.map(b => b.position_code));
     const posB = new Set(basicsB.map(b => b.position_code));
-    const intersection = [...posA].filter(p => posB.has(p));
+    const intersection = Array.from(posA).filter(p => posB.has(p));
     if (intersection.length > 0 && intersection[0] !== 'N/A') {
       connections.push({ type: 'same_position', points: 2, detail: `Atuam na mesma Posição: ${intersection[0]}` });
     }
@@ -179,7 +179,7 @@ export function getConnections(playerAId: string, playerBId: string, activeRules
   if (hasRule('same_language')) {
     const langA = new Set(basicsA.map(b => getLanguage(b.team_name)));
     const langB = new Set(basicsB.map(b => getLanguage(b.team_name)));
-    const intersection = [...langA].filter(l => langB.has(l) && l !== 'Other');
+    const intersection = Array.from(langA).filter(l => langB.has(l) && l !== 'Other');
     if (intersection.length > 0 && !connections.some(c => c.type === 'national_team_same_year' || c.type === 'national_team_any_year')) {
       const displayLang = intersection[0] === 'Portuguese' ? 'Português' : 
                           intersection[0] === 'Spanish' ? 'Espanhol' : 
