@@ -139,7 +139,7 @@ export function getConnections(playerAId: string, playerBId: string, activeRules
     const clubsStmtB = db.prepare(`SELECT DISTINCT club_name FROM player_clubs WHERE player_id = ?`).all(playerBId) as {club_name: string}[];
     const clubsA = new Set(clubsStmtA.map(c => c.club_name));
     const clubsB = new Set(clubsStmtB.map(c => c.club_name));
-    const intersection = [...clubsA].filter(c => clubsB.has(c));
+    const intersection = Array.from(clubsA).filter(c => clubsB.has(c));
     if (intersection.length > 0 && !connections.some(c => c.type === 'club_same_year')) {
       connections.push({ type: 'club_any_year', points: 10, detail: `Vestiram a camisa do mesmo Clube: ${intersection[0]}` });
     }
