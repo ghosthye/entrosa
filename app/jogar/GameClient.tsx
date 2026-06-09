@@ -352,6 +352,7 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
       let pCountry = undefined;
       let pTooltip = undefined;
       let pFaceUrl = undefined;
+      let pOvr = undefined;
       
       const filled = filledSlots[def.id];
       if (filled) {
@@ -364,6 +365,9 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
         pName = filled.name;
         pCountry = filled.country;
         pFaceUrl = filled.face_url;
+        if (difficulty !== 'Difícil') {
+          pOvr = filled.overall;
+        }
       } else if (blockedSlots.has(def.id)) {
         status = 'filled';
         pName = 'BLOQUEADO';
@@ -398,6 +402,7 @@ export default function GameClient({ puzzle, startingPlayer, mode }: GameClientP
         status,
         playerName: pName,
         playerCountry: pCountry,
+        playerOvr: pOvr,
         tooltipInfo: pTooltip,
         faceUrl: pFaceUrl,
       };
