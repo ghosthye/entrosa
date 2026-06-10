@@ -87,20 +87,30 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
       const userId = session.user.id;
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
-      
-      if (profile) {
-        const newWins = (profile.draft_tournaments_won || 0) + (isChampion ? 1 : 0);
-        const newOvr = Math.max(profile.draft_highest_overall || 0, teamOverall);
-        const newTotalGoals = (profile.draft_total_goals || 0) + tGoals;
-        const newTotalMatches = (profile.draft_total_matches || 0) + totalMatches;
-
-        await supabase.from('profiles').update({
-          draft_tournaments_won: newWins,
-          draft_highest_overall: newOvr,
-          draft_total_goals: newTotalGoals,
-          draft_total_matches: newTotalMatches
-        }).eq('id', userId);
+      let profileData = profile;
+      if (!profileData) {
+        // Fallback for brand new users who haven't played the daily puzzle yet
+        profileData = {
+          id: userId,
+          name: session.user.user_metadata?.full_name || 'Anônimo',
+          avatar_url: session.user.user_metadata?.avatar_url || ''
+        };
       }
+
+      const newWins = (profileData.draft_tournaments_won || 0) + (isChampion ? 1 : 0);
+      const newOvr = Math.max(profileData.draft_highest_overall || 0, teamOverall);
+      const newTotalGoals = (profileData.draft_total_goals || 0) + tGoals;
+      const newTotalMatches = (profileData.draft_total_matches || 0) + totalMatches;
+
+      const { error } = await supabase.from('profiles').upsert({
+        ...profileData,
+        draft_tournaments_won: newWins,
+        draft_highest_overall: newOvr,
+        draft_total_goals: newTotalGoals,
+        draft_total_matches: newTotalMatches
+      }, { onConflict: 'id' });
+
+      if (error) console.error("Error saving draft stats to Supabase:", error);
     } catch (e) {
       console.error(e);
     }
