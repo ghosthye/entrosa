@@ -252,9 +252,6 @@ export function DraftClient() {
                  <div>
                    <div className="flex items-center gap-3">
                      <h2 className="font-display text-3xl text-white uppercase tracking-wider leading-none">Draft</h2>
-                     <button onClick={autoFillDebug} className="bg-red-900/50 hover:bg-red-600 text-red-200 text-[9px] px-2 py-1 rounded font-mono uppercase tracking-widest border border-red-500/30 transition-colors" title="Preencher Automaticamente (Debug)">
-                       Auto-Fill
-                     </button>
                    </div>
                    <p className="text-secondary text-[10px] font-mono uppercase tracking-widest mt-1">Sorteio Histórico</p>
                  </div>
