@@ -11,8 +11,9 @@ import { useTheme } from 'next-themes';
 import { CopaModal } from '@/components/CopaModal';
 import { PlayerDetailsModal } from '@/components/PlayerDetailsModal';
 import Link from 'next/link';
-import { loadGameState, saveGameState, clearGameState, updateDailyStreak, updateUserStats, loadUserStats } from '@/lib/storage';
+import { loadGameState, saveGameState, clearGameState, updateDailyStreak, updateUserStats, loadUserStats, getTopPlayer, getTopConnection, getTopClub, getTopNation, getTopTactic } from '@/lib/storage';
 import { formationsMap } from '@/lib/formations';
+import { supabase } from '@/lib/supabase';
 
 interface GameClientProps {
   mode: 'puzzle' | 'livre';
@@ -149,6 +150,32 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
       clearGameState(); // Limpar save para não recarregar no dia seguinte se for o mesmo puzzle
       const stats = loadUserStats();
       setUserStreak(stats.currentStreak);
+
+      // Sincronizar imediatamente com a Nuvem (Supabase) para atualizar o Ranking em tempo real
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && !session.user.is_anonymous) {
+          const topPlayer = getTopPlayer(stats);
+          const topConn = getTopConnection(stats);
+          const topClub = getTopClub(stats);
+          const topNation = getTopNation(stats);
+          const topTactic = getTopTactic(stats);
+
+          supabase.from('profiles').upsert({
+            id: session.user.id,
+            name: session.user.user_metadata?.full_name || 'Anônimo',
+            avatar_url: session.user.user_metadata?.avatar_url || '',
+            total_score: stats.totalScore,
+            current_streak: stats.currentStreak,
+            highest_streak: stats.maxStreak,
+            favorite_player: topPlayer ? topPlayer[0] : null,
+            favorite_connection: topConn ? topConn[0] : null,
+            favorite_club: topClub ? topClub[0] : null,
+            favorite_nation: topNation ? topNation[0] : null,
+            favorite_tactic: topTactic ? topTactic[0] : null,
+            flawless_puzzles: stats.flawlessPuzzles || 0
+          }, { onConflict: 'id' }).then();
+        }
+      });
     }
   }, [isGameOver, chain.length, slotDefinitions.length, mode]);
 

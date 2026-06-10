@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Play, Trophy, FastForward, List, Image as ImageIcon, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { motion } from 'framer-motion';
 import { HistoricTeam, simulateMatch, MatchResult } from '@/lib/simulation';
 import { ChainNode } from '@/components/ChainBar';
 import { FormationNode } from '@/components/Field';
@@ -58,6 +59,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
   
   const [activeTab, setActiveTab] = useState<'Partida' | 'Campanha' | 'Card'>('Partida');
   const [pastMatches, setPastMatches] = useState<PastMatch[]>([]);
+  const [eliminatedPhase, setEliminatedPhase] = useState<string>('');
 
   const [matchLog, setMatchLog] = useState<string[]>([]);
   const [score, setScore] = useState({ player: 0, opponent: 0 });
@@ -70,6 +72,8 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
   const [penaltyPhase, setPenaltyPhase] = useState(false);
   const [penaltyScore, setPenaltyScore] = useState({ player: 0, opponent: 0 });
   const [penaltiesHistory, setPenaltiesHistory] = useState({ player: [] as boolean[], opponent: [] as boolean[] });
+
+  const [cpuLiveMatch, setCpuLiveMatch] = useState<{ goalsA: number, goalsB: number } | null>(null);
 
   const teamOverall = Math.floor(
     playerTeam.reduce((acc, node) => acc + (node.player.overall || 70), 0) / playerTeam.length
@@ -205,6 +209,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
         if (pScore < oScore) {
           setTimeout(() => {
+            setEliminatedPhase(tournamentPhase);
             setTournamentPhase('Eliminado');
             setActiveTab('Card');
           }, 3000);
@@ -234,9 +239,21 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
     const result = simulateMatch(teamOverall, opponent.ovr, playerNamesArray, opponent.playerNames);
 
+    let cpuResult: any = null;
+    if (tournamentPhase === 'Grupos') {
+      const cpuTeamAId = currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1');
+      const cpuTeamBId = currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2');
+      const cpuA = groupStandings.find(t => t.id === cpuTeamAId)!;
+      const cpuB = groupStandings.find(t => t.id === cpuTeamBId)!;
+      cpuResult = simulateMatch(cpuA.ovr, cpuB.ovr, cpuA.playerNames, cpuB.playerNames);
+      setCpuLiveMatch({ goalsA: 0, goalsB: 0 });
+    }
+
     let currentMin = 0;
     let currentGoalsPlayer = 0;
     let currentGoalsOpponent = 0;
+    let currentCpuGoalsA = 0;
+    let currentCpuGoalsB = 0;
     let playerScorers: string[] = [];
     let opponentScorers: string[] = [];
     const intervalTime = speed === 'rápida' ? 50 : 200;
@@ -259,6 +276,16 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
             if (event.scorerName) opponentScorers.push(event.scorerName);
           }
           setScore({ player: currentGoalsPlayer, opponent: currentGoalsOpponent });
+        }
+      }
+
+      if (tournamentPhase === 'Grupos' && cpuResult) {
+        const cpuEventA = cpuResult.events.find((e: any) => e.minute === currentMin && e.team === 'player' && e.type === 'goal');
+        const cpuEventB = cpuResult.events.find((e: any) => e.minute === currentMin && e.team === 'opponent' && e.type === 'goal');
+        if (cpuEventA || cpuEventB) {
+          if (cpuEventA) currentCpuGoalsA++;
+          if (cpuEventB) currentCpuGoalsB++;
+          setCpuLiveMatch({ goalsA: currentCpuGoalsA, goalsB: currentCpuGoalsB });
         }
       }
 
@@ -291,14 +318,6 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
         setMatchLog(prev => ['Fim de Jogo!', ...prev]);
 
         if (tournamentPhase === 'Grupos') {
-           let cpuMatchResult: any = undefined;
-           const cpuTeamAId = currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1');
-           const cpuTeamBId = currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2');
-           
-           const cpuA = groupStandings.find(t => t.id === cpuTeamAId)!;
-           const cpuB = groupStandings.find(t => t.id === cpuTeamBId)!;
-           const res = simulateMatch(cpuA.ovr, cpuB.ovr, cpuA.playerNames, cpuB.playerNames);
-           
            setGroupStandings(prev => {
              const newSt = prev.map(t => ({ ...t }));
              
@@ -312,8 +331,8 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
              updateTeam('player', currentGoalsPlayer, currentGoalsOpponent);
              updateTeam(opponent.id, currentGoalsOpponent, currentGoalsPlayer);
-             updateTeam(cpuA.id, res.playerGoals, res.opponentGoals);
-             updateTeam(cpuB.id, res.opponentGoals, res.playerGoals);
+             updateTeam(tournamentPhase === 'Grupos' ? (currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1')) : 'none', currentCpuGoalsA, currentCpuGoalsB);
+             updateTeam(tournamentPhase === 'Grupos' ? (currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2')) : 'none', currentCpuGoalsB, currentCpuGoalsA);
 
              newSt.sort((a, b) => {
                if (a.pts !== b.pts) return b.pts - a.pts;
@@ -323,8 +342,10 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
              return newSt;
            });
+           setCpuLiveMatch(null);
         } else {
            if (currentGoalsPlayer < currentGoalsOpponent) {
+             setEliminatedPhase(tournamentPhase);
              setTournamentPhase('Eliminado');
              setActiveTab('Card');
            } else if (tournamentPhase === 'Final') {
@@ -351,6 +372,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
         if (playerRank === 0 || playerRank === 1) {
           setTournamentPhase('Oitavas');
         } else {
+          setEliminatedPhase('Fase de Grupos');
           setTournamentPhase('Eliminado');
           setActiveTab('Card');
         }
@@ -400,6 +422,31 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
   const totalGoalsAgainst = pastMatches.reduce((acc, m) => acc + m.opponentGoals, 0);
   const totalWins = pastMatches.filter(m => m.playerGoals > m.opponentGoals || (m.penaltyScore && m.penaltyScore.player > m.penaltyScore.opponent)).length;
 
+  let displayStandings = [...groupStandings];
+  if (tournamentPhase === 'Grupos' && isPlaying && currentOpponent && cpuLiveMatch) {
+    displayStandings = groupStandings.map(t => ({ ...t }));
+    const cpuTeamAId = currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1');
+    const cpuTeamBId = currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2');
+
+    const updateLiveTeam = (id: string, gf: number, ga: number) => {
+      const t = displayStandings.find(x => x.id === id)!;
+      t.pld++; t.gf += gf; t.ga += ga; t.gd = t.gf - t.ga;
+      if (gf > ga) { t.win++; t.pts += 3; }
+      else if (gf === ga) { t.draw++; t.pts += 1; }
+      else { t.loss++; }
+    };
+
+    updateLiveTeam('player', score.player, score.opponent);
+    updateLiveTeam(currentOpponent.id, score.opponent, score.player);
+    updateLiveTeam(cpuTeamAId, cpuLiveMatch.goalsA, cpuLiveMatch.goalsB);
+    updateLiveTeam(cpuTeamBId, cpuLiveMatch.goalsB, cpuLiveMatch.goalsA);
+
+    displayStandings.sort((a, b) => {
+      if (a.pts !== b.pts) return b.pts - a.pts;
+      if (a.gd !== b.gd) return b.gd - a.gd;
+      return b.gf - a.gf;
+    });
+  }
 
   const handleDownloadCard = async () => {
     if (!cardRef.current) return;
@@ -463,7 +510,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
                       </div>
                       
                       <div className="flex flex-col items-center shrink-0">
-                        <div className="text-3xl sm:text-6xl font-display text-[var(--text-primary)] px-3 sm:px-6 bg-[var(--bg-background)] rounded-xl border border-[var(--border-color)] py-2 sm:py-3 shadow-inner">
+                        <div className="text-4xl sm:text-6xl font-display text-[var(--text-primary)] px-4 sm:px-6 bg-[var(--bg-background)] rounded-xl border border-[var(--border-color)] py-2 sm:py-3 shadow-inner">
                           {score.player} - {score.opponent}
                         </div>
                         {penaltyPhase && (
@@ -475,16 +522,22 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
                       <div className="text-center flex-1 min-w-0">
                         <div className="text-[10px] sm:text-sm text-[var(--text-secondary)] font-bold mb-1 tracking-wider">{currentOpponent.year}</div>
-                        <div className="text-xl sm:text-3xl font-display text-[var(--text-primary)] uppercase truncate">{currentOpponent.name}</div>
+                        <div className="text-xl sm:text-4xl font-display text-[var(--text-primary)] uppercase truncate">{currentOpponent.name}</div>
                         <div className="text-[10px] sm:text-sm font-mono mt-1 sm:mt-2 text-vermelho-erro bg-vermelho-erro/10 inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-vermelho-erro/20">OVR {currentOpponent.ovr}</div>
                         {penaltyPhase && renderPenaltyDots(penaltiesHistory.opponent)}
                       </div>
                     </div>
 
-                    <div className="text-center mb-6 mt-auto">
-                      <div className={`text-7xl font-mono mb-8 ${penaltyPhase ? 'text-amarelo-gol animate-pulse font-display tracking-widest' : 'text-[var(--text-secondary)]'}`}>
-                        {penaltyPhase ? 'PÊNALTIS' : `${minute}'`}
-                      </div>
+                    <div className="text-center mb-2 mt-auto">
+                      {penaltyPhase ? (
+                        <div className="text-4xl sm:text-7xl text-amarelo-gol animate-pulse font-display tracking-widest mb-4">
+                          PÊNALTIS
+                        </div>
+                      ) : (
+                        <div className="text-5xl sm:text-7xl font-mono mb-4 text-[var(--text-secondary)]">
+                          {minute}'
+                        </div>
+                      )}
                       
                       {!isPlaying && !matchEnded && (
                         <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
@@ -509,6 +562,47 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
                         </div>
                       )}
                     </div>
+
+                    {/* TABELA DE CLASSIFICAÇÃO (Apenas na Fase de Grupos) */}
+                    {tournamentPhase === 'Grupos' && (
+                      <div className="mt-2 max-w-3xl mx-auto w-full bg-[var(--bg-background)] p-3 rounded-xl border border-[var(--border-color)]">
+                        <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <List size={14} className="text-amarelo-gol" /> Classificação do Grupo
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex text-[9px] font-mono text-[var(--text-secondary)] px-3 uppercase pb-1 border-b border-[var(--border-color)]">
+                            <div className="w-6">#</div>
+                            <div className="flex-1">Seleção</div>
+                            <div className="w-10 text-center font-bold text-white">PTS</div>
+                            <div className="w-8 text-center hidden sm:block">J</div>
+                            <div className="w-8 text-center hidden sm:block">V</div>
+                            <div className="w-8 text-center hidden sm:block">E</div>
+                            <div className="w-8 text-center hidden sm:block">D</div>
+                            <div className="w-10 text-center">SG</div>
+                          </div>
+                          {displayStandings.map((team, idx) => (
+                            <motion.div 
+                              layout
+                              transition={{ type: "spring", stiffness: 120, damping: 15, mass: 0.8 }}
+                              key={team.id} 
+                              className={`flex items-center text-xs px-3 py-2 rounded-lg border transition-all ${team.isPlayer ? 'bg-amarelo-gol/10 border-amarelo-gol/30 shadow-[inset_0_0_10px_rgba(234,179,8,0.1)]' : 'bg-[var(--bg-surface)] border-[var(--border-color)]'} ${idx < 2 ? 'border-l-4 border-l-verde-grama' : 'border-l-4 border-l-vermelho-erro/50 opacity-80'}`}
+                            >
+                              <div className="w-5 font-mono text-[var(--text-secondary)] font-bold">{idx + 1}</div>
+                              <div className="flex-1 font-bold flex items-center gap-2 truncate text-[var(--text-primary)] uppercase">
+                                {team.name}
+                                {team.isPlayer && <span className="text-[8px] bg-amarelo-gol text-black px-1 py-0.5 rounded font-mono uppercase tracking-widest hidden sm:inline-block">Você</span>}
+                              </div>
+                              <div className="w-8 text-center font-display text-lg text-amarelo-gol">{team.pts}</div>
+                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.pld}</div>
+                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.win}</div>
+                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.draw}</div>
+                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.loss}</div>
+                              <div className="w-8 text-center font-mono font-bold text-[var(--text-primary)]">{team.gd > 0 ? `+${team.gd}` : team.gd}</div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -638,7 +732,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
                           {tournamentPhase === 'Campeão' ? 'CAMPEÃO!' : 'ELIMINADO'}
                         </div>
                         <div className="text-xs text-white/40 font-bold tracking-[0.2em] uppercase mb-8">
-                          {tournamentPhase === 'Campeão' ? 'A GLÓRIA ETERNA' : `CAIU NA FASE: ${tournamentPhase}`}
+                          {tournamentPhase === 'Campeão' ? 'A GLÓRIA ETERNA' : `CAIU NA FASE: ${eliminatedPhase}`}
                         </div>
 
                         <div className="space-y-4">
