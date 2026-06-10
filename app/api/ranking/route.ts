@@ -36,6 +36,11 @@ export async function GET(request: Request) {
     return NextResponse.json({
       topPlayers,
       hypotheticalRank
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache'
+      }
     });
   } catch (error) {
     console.error('Error fetching ranking:', error);

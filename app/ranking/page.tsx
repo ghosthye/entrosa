@@ -12,7 +12,7 @@ export default function RankingPage() {
   const { user, signInWithGoogle } = useAuth();
 
   useEffect(() => {
-    fetch('/api/ranking')
+    fetch('/api/ranking', { cache: 'no-store' })
       .then(res => {
         if (!res.ok) throw new Error('Falha ao carregar ranking. Verifique o banco de dados (RLS).');
         return res.json();
