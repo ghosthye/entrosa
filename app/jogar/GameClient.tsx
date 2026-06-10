@@ -688,10 +688,10 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
                   {[1, 2, 3].map(attempt => (
                     <div 
                       key={attempt} 
-                      className={`w-4 h-4 rounded-full ${attempt <= (3 - errors) ? 'bg-verde-grama' : 'bg-cinza-borda/30'}`} 
+                      className={`w-4 h-4 rounded-full ${attempt <= (3 - (errors[activeSlotId] || 0)) ? 'bg-verde-grama' : 'bg-cinza-borda/30'}`} 
                     />
                   ))}
-                  <span className="text-xs text-cinza-borda ml-2 leading-4">{(3 - errors)} tentativas<br/>nesta posição</span>
+                  <span className="text-xs text-cinza-borda ml-2 leading-4">{(3 - (errors[activeSlotId] || 0))} tentativas<br/>nesta posição</span>
                 </div>
               ) : null}
               

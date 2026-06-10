@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, UserMinus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -23,6 +23,8 @@ interface PlayerDetailsModalProps {
 }
 
 export function PlayerDetailsModal({ player, connections, removalCost, onRemove, onClose }: PlayerDetailsModalProps) {
+  const [imgError, setImgError] = useState(false);
+  
   // Calcular pontos que este jogador rendeu no momento da inserção
   let totalPoints = connections.reduce((sum, c) => {
     // A pontuação base por tipo de conexão pode ser derivada, mas como não temos os pontos exatos
@@ -56,8 +58,13 @@ export function PlayerDetailsModal({ player, connections, removalCost, onRemove,
             <X size={24} />
           </button>
           
-          {player.face_url ? (
-            <img src={`/api/image?url=${encodeURIComponent(player.face_url)}`} alt={player.name} className="w-24 h-24 object-contain mb-4 drop-shadow-lg" />
+          {player.face_url && !imgError ? (
+            <img 
+              src={`/api/image?url=${encodeURIComponent(player.face_url)}`} 
+              alt={player.name} 
+              className="w-24 h-24 object-contain mb-4 drop-shadow-lg" 
+              onError={() => setImgError(true)}
+            />
           ) : (
             <div className="w-20 h-20 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-4xl mb-4 border-2 border-amarelo-gol shadow-lg">
               {player.name.charAt(0)}

@@ -20,6 +20,7 @@ interface PlayerSlotProps {
 
 export function PlayerSlot({ status, positionLabel, playerName, playerCountry, playerYear, playerOvr, onClick, isError, tooltipInfo, faceUrl, errorCount = 0 }: PlayerSlotProps) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   let bgClass = 'bg-verde-campo border-cinza-borda/30 opacity-60 hover:opacity-100 cursor-pointer';
   let borderClass = 'border-2 border-dashed';
@@ -103,8 +104,13 @@ export function PlayerSlot({ status, positionLabel, playerName, playerCountry, p
             </div>
           )}
 
-          {faceUrl ? (
-            <img src={`/api/image?url=${encodeURIComponent(faceUrl)}`} alt={playerName} className="w-14 h-14 sm:w-16 sm:h-16 object-contain absolute bottom-8 sm:bottom-10 drop-shadow-md z-10" />
+          {faceUrl && !imageError ? (
+            <img 
+              src={`/api/image?url=${encodeURIComponent(faceUrl)}`} 
+              alt={playerName} 
+              className="w-14 h-14 sm:w-16 sm:h-16 object-contain absolute bottom-8 sm:bottom-10 drop-shadow-md z-10" 
+              onError={() => setImageError(true)}
+            />
           ) : (
              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-lg sm:text-xl absolute bottom-10 drop-shadow-md z-10 border border-amarelo-gol/50">
                {playerName?.charAt(0)}
