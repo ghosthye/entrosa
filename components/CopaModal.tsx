@@ -76,10 +76,12 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
 
   const [cpuLiveMatch, setCpuLiveMatch] = useState<{ goalsA: number, goalsB: number } | null>(null);
 
-  const saveDraftStats = async (isChampion: boolean, finalScorePlayer: number) => {
+  const saveDraftStats = async (isChampion: boolean, finalScorePlayer: number, finalScoreOpponent: number) => {
     let tGoals = pastMatches.reduce((acc, m) => acc + (m.playerGoals || 0), 0);
     tGoals += finalScorePlayer;
-    const totalMatches = pastMatches.length + 1;
+
+    let tConceded = pastMatches.reduce((acc, m) => acc + (m.opponentGoals || 0), 0);
+    tConceded += finalScoreOpponent;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -100,14 +102,16 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
       const newWins = (profileData.draft_tournaments_won || 0) + (isChampion ? 1 : 0);
       const newOvr = Math.max(profileData.draft_highest_overall || 0, teamOverall);
       const newTotalGoals = (profileData.draft_total_goals || 0) + tGoals;
-      const newTotalMatches = (profileData.draft_total_matches || 0) + totalMatches;
+      const newTotalConceded = (profileData.draft_goals_conceded || 0) + tConceded;
+      const newTotalDrafts = (profileData.draft_total_matches || 0) + 1; // 1 Draft Jogado
 
       const { error } = await supabase.from('profiles').upsert({
         ...profileData,
         draft_tournaments_won: newWins,
         draft_highest_overall: newOvr,
         draft_total_goals: newTotalGoals,
-        draft_total_matches: newTotalMatches
+        draft_goals_conceded: newTotalConceded,
+        draft_total_matches: newTotalDrafts
       }, { onConflict: 'id' });
 
       if (error) console.error("Error saving draft stats to Supabase:", error);
@@ -253,13 +257,13 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
             setEliminatedPhase(tournamentPhase);
             setTournamentPhase('Eliminado');
             setActiveTab('Card');
-            saveDraftStats(false, score.player);
+            saveDraftStats(false, score.player, score.opponent);
           }, 3000);
         } else if (tournamentPhase === 'Final') {
           setTimeout(() => {
             setTournamentPhase('Campeão');
             setActiveTab('Card');
-            saveDraftStats(true, score.player);
+            saveDraftStats(true, score.player, score.opponent);
           }, 3000);
         }
       }
@@ -391,17 +395,15 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
              setEliminatedPhase(tournamentPhase);
              setTournamentPhase('Eliminado');
              setActiveTab('Card');
-             saveDraftStats(false, currentGoalsPlayer);
+             saveDraftStats(false, currentGoalsPlayer, currentGoalsOpponent);
            } else if (tournamentPhase === 'Final') {
              setTournamentPhase('Campeão');
              setActiveTab('Card');
-             saveDraftStats(true, currentGoalsPlayer);
+             saveDraftStats(true, currentGoalsPlayer, currentGoalsOpponent);
            }
         }
       }
     }, intervalTime);
-  };
-
   const nextMatch = () => {
     if (tournamentPhase === 'Grupos') {
       if (currentRound < 3) {
@@ -420,7 +422,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
           setEliminatedPhase('Fase de Grupos');
           setTournamentPhase('Eliminado');
           setActiveTab('Card');
-          saveDraftStats(false, score.player);
+          saveDraftStats(false, score.player, score.opponent);
         }
         setMatchEnded(false);
         setMinute(0);

@@ -71,6 +71,7 @@ export default function PerfilPage() {
   const draftTournamentsWon = cloudStats?.draft_tournaments_won || 0;
   const draftHighestOverall = cloudStats?.draft_highest_overall || 0;
   const draftTotalGoals = cloudStats?.draft_total_goals || 0;
+  const draftGoalsConceded = cloudStats?.draft_goals_conceded || 0;
   const draftTotalMatches = cloudStats?.draft_total_matches || 0;
 
   return (
@@ -193,15 +194,19 @@ export default function PerfilPage() {
 
             <div className="space-y-3">
               <div className="flex justify-between items-center p-3 bg-surface border border-border-color rounded-lg">
-                <span className="text-sm font-bold text-secondary uppercase">Partidas Jogadas</span>
+                <span className="text-sm font-bold text-secondary uppercase">Drafts Jogados</span>
                 <span className="font-mono text-xl text-primary">{draftTotalMatches}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-surface border border-border-color rounded-lg">
-                <span className="text-sm font-bold text-secondary uppercase">Gols Pró Totais</span>
+                <span className="text-sm font-bold text-secondary uppercase">Gols Feitos</span>
                 <span className="font-mono text-xl text-primary">{draftTotalGoals}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-surface border border-border-color rounded-lg">
-                <span className="text-sm font-bold text-secondary uppercase">Média de Gols/J</span>
+                <span className="text-sm font-bold text-secondary uppercase">Gols Sofridos</span>
+                <span className="font-mono text-xl text-primary">{draftGoalsConceded}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-surface border border-border-color rounded-lg">
+                <span className="text-sm font-bold text-secondary uppercase">Média de Gols/D</span>
                 <span className="font-mono text-xl text-primary">
                   {draftTotalMatches > 0 ? (draftTotalGoals / draftTotalMatches).toFixed(1) : '0.0'}
                 </span>
