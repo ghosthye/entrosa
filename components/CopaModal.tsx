@@ -77,7 +77,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
   const [cpuLiveMatch, setCpuLiveMatch] = useState<{ goalsA: number, goalsB: number } | null>(null);
 
   const saveDraftStats = async (isChampion: boolean, finalScorePlayer: number) => {
-    let tGoals = pastMatches.reduce((acc, m) => acc + (m.score?.player || 0), 0);
+    let tGoals = pastMatches.reduce((acc, m) => acc + (m.playerGoals || 0), 0);
     tGoals += finalScorePlayer;
     const totalMatches = pastMatches.length + 1;
 
