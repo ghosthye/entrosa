@@ -782,6 +782,10 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
               streak={userStreak}
               isDuel={isDuel}
               onPlayCopa={() => setShowCopaModal(true)}
+              onRetry={() => {
+                clearGameState();
+                window.location.reload();
+              }}
             />
             {Object.keys(filledSlots).length === 11 && (
               onDuelComplete && (

@@ -13,9 +13,10 @@ interface ScoreCardProps {
   streak?: number;
   isDuel?: boolean;
   onPlayCopa?: () => void;
+  onRetry?: () => void;
 }
 
-export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPlayFree, nextTeaser, streak, isDuel, onPlayCopa }: ScoreCardProps) {
+export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPlayFree, nextTeaser, streak, isDuel, onPlayCopa, onRetry }: ScoreCardProps) {
   const { user, signInWithGoogle } = useAuth();
   const [rank, setRank] = useState<number | null>(null);
 
@@ -120,6 +121,14 @@ export function ScoreCard({ score, maxScorePossible, chainLength, onShare, onPla
               ⚔️ Desafiar Amigo
             </button>
           </Link>
+        )}
+        {chainLength < 11 && onRetry && (
+          <button 
+            onClick={onRetry}
+            className="w-full bg-vermelho-erro hover:bg-red-700 text-branco font-bold py-3 sm:py-4 rounded-lg uppercase tracking-wider transition-transform active:scale-95 shadow-md flex items-center justify-center gap-2"
+          >
+            🔄 Tentar Novamente
+          </button>
         )}
         {!isDuel && (
           <button 
