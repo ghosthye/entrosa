@@ -172,8 +172,9 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
             favorite_club: topClub ? topClub[0] : null,
             favorite_nation: topNation ? topNation[0] : null,
             favorite_tactic: topTactic ? topTactic[0] : null,
-            flawless_puzzles: stats.flawlessPuzzles || 0
-          }, { onConflict: 'id' }).then();
+          }, { onConflict: 'id' }).then(({ error }) => {
+            if (error) console.error("Error saving puzzle stats to Supabase:", error);
+          });
         }
       });
     }
@@ -436,7 +437,10 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
               ...prev,
               completedPuzzles: prev.completedPuzzles + (isLastPlayer ? 1 : 0),
               totalScore: prev.totalScore + (isLastPlayer ? (score + newPoints) : 0),
-              tacticsUsed: newTactics,
+              playersUsed: newPlayersUsed,
+              connectionsUsed: newConnUsed,
+              clubsUsed: newClubsUsed,
+              nationsUsed: newNationsUsed,
               flawlessPuzzles: prev.flawlessPuzzles + (isLastPlayer && Object.values(errors).reduce((a,b)=>a+b,0) === 0 ? 1 : 0)
             };
           });

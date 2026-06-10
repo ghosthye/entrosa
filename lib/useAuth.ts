@@ -80,9 +80,9 @@ export function useAuth() {
       }, { onConflict: 'id' });
 
     if (!error) {
-      // Clear local stats to prevent re-syncing over and over
-      // Or just mark as synced. For now, let's mark as synced in local storage
-      updateUserStats({ isSynced: true } as any);
+      localStorage.setItem('entrosa_cloud_sync_time', Date.now().toString());
+    } else {
+      console.error("Error syncing stats to Supabase:", error);
     }
   };
 
