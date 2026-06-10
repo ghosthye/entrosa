@@ -430,12 +430,14 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
             const newPlayersUsed = { ...prev.playersUsed };
             newPlayersUsed[player.name] = (newPlayersUsed[player.name] || 0) + 1;
             
+            const isLastPlayer = newChain.length === slotDefinitions.length;
+            
             return {
               ...prev,
-              completedPuzzles: prev.completedPuzzles + 1,
-              totalScore: prev.totalScore + score,
+              completedPuzzles: prev.completedPuzzles + (isLastPlayer ? 1 : 0),
+              totalScore: prev.totalScore + (isLastPlayer ? (score + newPoints) : 0),
               tacticsUsed: newTactics,
-              flawlessPuzzles: prev.flawlessPuzzles + (Object.values(errors).reduce((a,b)=>a+b,0) === 0 ? 1 : 0)
+              flawlessPuzzles: prev.flawlessPuzzles + (isLastPlayer && Object.values(errors).reduce((a,b)=>a+b,0) === 0 ? 1 : 0)
             };
           });
         }

@@ -404,6 +404,8 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
         }
       }
     }, intervalTime);
+  };
+
   const nextMatch = () => {
     if (tournamentPhase === 'Grupos') {
       if (currentRound < 3) {
