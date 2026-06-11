@@ -5,19 +5,24 @@ let dbWorldCup: Database.Database | null = null;
 let dbBrasileirao: Database.Database | null = null;
 
 export function getDb(league: 'worldcup' | 'brasileirao' = 'worldcup') {
-  if (league === 'brasileirao') {
-    if (!dbBrasileirao) {
-      const dbPath = path.join(process.cwd(), 'data', 'brasileirao.db');
-      dbBrasileirao = new Database(dbPath);
-      dbBrasileirao.pragma('journal_mode = WAL');
+  try {
+    if (league === 'brasileirao') {
+      if (!dbBrasileirao) {
+        const dbPath = path.resolve(process.cwd(), 'data', 'brasileirao.db');
+        dbBrasileirao = new Database(dbPath, { readonly: false });
+        dbBrasileirao.pragma('journal_mode = DELETE');
+      }
+      return dbBrasileirao;
     }
-    return dbBrasileirao;
-  }
 
-  if (!dbWorldCup) {
-    const dbPath = path.join(process.cwd(), 'data', 'worldcup.db');
-    dbWorldCup = new Database(dbPath);
-    dbWorldCup.pragma('journal_mode = WAL');
+    if (!dbWorldCup) {
+      const dbPath = path.resolve(process.cwd(), 'data', 'worldcup.db');
+      dbWorldCup = new Database(dbPath, { readonly: false });
+      dbWorldCup.pragma('journal_mode = DELETE');
+    }
+    return dbWorldCup;
+  } catch (err) {
+    console.error(`Failed to connect to ${league} database:`, err);
+    throw err;
   }
-  return dbWorldCup;
 }
