@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    const teams = getRandomHistoricTeams(31); // Group Stage has 3 opponents
+    const { searchParams } = new URL(request.url);
+    const league = (searchParams.get('league') as 'worldcup' | 'brasileirao') || 'worldcup';
+    const teams = getRandomHistoricTeams(31, league); // Group Stage has 3 opponents
     return NextResponse.json(teams);
   } catch (err) {
     console.error('Opponents API Error:', err);

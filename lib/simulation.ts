@@ -3,6 +3,7 @@ export interface HistoricTeam {
   teamName: string;
   squadOveralls: number[];
   playerNames?: string[];
+  playerPositions?: string[];
   averageOverall: number;
 }
 
@@ -30,13 +31,34 @@ export interface MatchResult {
   penalties?: PenaltyShootout;
 }
 
-function getRandomScorer(names: string[]): string {
+function getRandomScorer(names: string[], positions?: string[]): string {
   if (!names || names.length === 0) return 'Jogador';
-  // Favorecer os primeiros do array (geralmente atacantes se estiver ordenado, 
-  // mas como pegamos top 11 por overall, os melhores farão mais gols)
-  // Usamos um Math.random() ^ 2 para dar um leve viés para os primeiros índices
-  const index = Math.floor(Math.pow(Math.random(), 2) * names.length);
-  return names[index] || 'Jogador';
+  
+  if (!positions || positions.length !== names.length) {
+    // Fallback se não tiver posições ou se o tamanho não bater
+    const index = Math.floor(Math.pow(Math.random(), 2) * names.length);
+    return names[index] || 'Jogador';
+  }
+
+  const weights: number[] = names.map((_, i) => {
+    const pos = positions[i]?.toUpperCase() || '';
+    if (['ATA', 'PE', 'PD', 'CA'].includes(pos)) return 100;
+    if (['MEI', 'MC', 'VOL', 'ME', 'MD'].includes(pos)) return 50;
+    if (['ZAG', 'LD', 'LE', 'LAT', 'DEF', 'LAD', 'LAE'].includes(pos)) return 10;
+    if (pos === 'GOL' || pos === 'GR') return 0;
+    return 30; // Default para posições desconhecidas
+  });
+
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  if (totalWeight === 0) return names[Math.floor(Math.random() * names.length)];
+
+  let random = Math.random() * totalWeight;
+  for (let i = 0; i < names.length; i++) {
+    if (random < weights[i]) return names[i];
+    random -= weights[i];
+  }
+
+  return names[0];
 }
 
 export function simulateMatch(
@@ -44,7 +66,9 @@ export function simulateMatch(
   opponentTeamOverall: number,
   playerNames: string[] = [],
   opponentNames: string[] = [],
-  requireWinner: boolean = false
+  requireWinner: boolean = false,
+  playerPositions: string[] = [],
+  opponentPositions: string[] = []
 ): MatchResult {
   const events: MatchEvent[] = [];
   let playerGoals = 0;
@@ -67,7 +91,10 @@ export function simulateMatch(
         if (attackingTeam === 'player') playerGoals++;
         else opponentGoals++;
         
-        const scorer = attackingTeam === 'player' ? getRandomScorer(playerNames) : getRandomScorer(opponentNames);
+        const scorer = attackingTeam === 'player' 
+          ? getRandomScorer(playerNames, playerPositions) 
+          : getRandomScorer(opponentNames, opponentPositions);
+        
         events.push({
           minute: min,
           type: 'goal',
@@ -76,7 +103,10 @@ export function simulateMatch(
           description: `GOL! ${scorer} balança as redes!`
         });
       } else {
-        const attacker = attackingTeam === 'player' ? getRandomScorer(playerNames) : getRandomScorer(opponentNames);
+        const attacker = attackingTeam === 'player' 
+          ? getRandomScorer(playerNames, playerPositions) 
+          : getRandomScorer(opponentNames, opponentPositions);
+        
         events.push({
           minute: min,
           type: 'attack',

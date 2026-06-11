@@ -11,6 +11,7 @@ interface CopaModalProps {
   onClose: () => void;
   playerTeam: ChainNode[];
   nodes2D: FormationNode[][];
+  league?: 'worldcup' | 'brasileirao';
 }
 
 interface GroupTeam {
@@ -51,7 +52,7 @@ function getRandomScorer(names: string[]): string {
   return names[index] || 'Jogador';
 }
 
-export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
+export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup' }: CopaModalProps) {
   const [opponents, setOpponents] = useState<HistoricTeam[]>([]);
   const [groupStandings, setGroupStandings] = useState<GroupTeam[]>([]);
   
@@ -131,7 +132,8 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
   }).map(n => n.player.name ? (n.player.name.split(' ').pop() || 'Jogador') : 'Jogador') as string[];
 
   useEffect(() => {
-    fetch('/api/opponents')
+    const url = league ? `/api/opponents?league=${league}` : '/api/opponents';
+    fetch(url)
       .then(res => res.json())
       .then((data: HistoricTeam[]) => {
         setOpponents(data);
@@ -195,14 +197,15 @@ export function CopaModal({ onClose, playerTeam, nodes2D }: CopaModalProps) {
       let logMsg = '';
       
       if (turn === 'player') {
-        const taker = getRandomScorer(playerNamesArray);
+        const taker = playerNamesArray.length > 0 ? playerNamesArray[(round - 1) % playerNamesArray.length] : 'Jogador';
         isGoal = Math.random() < playerHitChance;
         pHistory = [...pHistory, isGoal];
         pDetails.push({ name: taker, isGoal });
         if (isGoal) pScore++;
         logMsg = isGoal ? `${taker} vai pra cobrança... GOL! Cobrança perfeita!` : `${taker} na bola... DEFESA DO GOLEIRO! Perdeu!`;
       } else {
-        const taker = getRandomScorer(opponent.playerNames || []);
+        const oppNames = opponent.playerNames || [];
+        const taker = oppNames.length > 0 ? oppNames[(round - 1) % oppNames.length] : 'Jogador';
         isGoal = Math.random() < opponentHitChance;
         oHistory = [...oHistory, isGoal];
         oDetails.push({ name: taker, isGoal });

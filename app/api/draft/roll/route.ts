@@ -4,23 +4,38 @@ import { getPlayerOverall } from '@/lib/overall';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const db = getDb();
+    const { searchParams } = new URL(request.url);
+    const league = (searchParams.get('league') as 'worldcup' | 'brasileirao') || 'worldcup';
+    const difficulty = searchParams.get('difficulty') || 'easy';
+    const db = getDb(league);
 
-    // 1. Draw a random team and tournament combination that exists in the squads table
-    const randomSquadStmt = db.prepare(`
-      SELECT s.tournament_id, s.team_id, t.team_name, tr.year, tr.tournament_name
-      FROM squads s
-      JOIN teams t ON s.team_id = t.team_id
-      JOIN tournaments tr ON s.tournament_id = tr.tournament_id
-      GROUP BY s.tournament_id, s.team_id
-      ORDER BY RANDOM() LIMIT 1
-    `);
+    const sampleSize = difficulty === 'easy' ? 8 : 1;
+
+    let randomSquadsStmt;
+    if (league === 'brasileirao') {
+      randomSquadsStmt = db.prepare(`
+        SELECT s.tournament_id, s.team_id, t.team_name, SUBSTR(s.tournament_id, 4) as year, 'Brasileirão Histórico' as tournament_name
+        FROM squads s
+        JOIN teams t ON s.team_id = t.team_id
+        GROUP BY s.tournament_id, s.team_id
+        ORDER BY RANDOM() LIMIT ?
+      `);
+    } else {
+      randomSquadsStmt = db.prepare(`
+        SELECT s.tournament_id, s.team_id, t.team_name, tr.year, tr.tournament_name
+        FROM squads s
+        JOIN teams t ON s.team_id = t.team_id
+        JOIN tournaments tr ON s.tournament_id = tr.tournament_id
+        GROUP BY s.tournament_id, s.team_id
+        ORDER BY RANDOM() LIMIT ?
+      `);
+    }
     
-    const randomSquad = randomSquadStmt.get() as any;
+    const randomSquads = randomSquadsStmt.all(sampleSize) as any[];
 
-    if (!randomSquad) {
+    if (!randomSquads || randomSquads.length === 0) {
       return NextResponse.json({ error: 'Nenhum elenco encontrado' }, { status: 500 });
     }
 
@@ -32,38 +47,75 @@ export async function GET() {
       WHERE s.tournament_id = ? AND s.team_id = ?
     `);
 
-    const roster = rosterStmt.all(randomSquad.tournament_id, randomSquad.team_id) as any[];
+    let bestSquad = randomSquads[0];
+    let bestRosterFormatted: any[] = [];
+    let bestSquadOverall = 0;
 
-    // Format the names
-    const formattedRoster = roster.map(player => {
-      const isCaptainBug = player.family_name?.toLowerCase() === 'captain';
-      let givenName = player.given_name === 'not applicable' ? '' : (player.given_name || '');
-      let familyName = player.family_name === 'not applicable' ? '' : (player.family_name || '');
-      let fullName = `${givenName} ${familyName}`.trim() || 'Desconhecido';
+    for (const squad of randomSquads) {
+      const roster = rosterStmt.all(squad.tournament_id, squad.team_id) as any[];
+
+      // Format the names
+      const formattedRoster = roster.map(player => {
+        const isCaptainBug = player.family_name?.toLowerCase() === 'captain';
+        let givenName = player.given_name === 'not applicable' ? '' : (player.given_name || '');
+        let familyName = player.family_name === 'not applicable' ? '' : (player.family_name || '');
+        
+        let fullName = givenName === familyName ? givenName : `${givenName} ${familyName}`.trim();
+        if (!fullName) fullName = 'Desconhecido';
+        
+        if (isCaptainBug) {
+          fullName = 'Son Heung-min';
+        }
+        
+        const overall = getPlayerOverall(player.player_id, league);
+        
+        return {
+          id: player.player_id,
+          name: fullName,
+          face_url: player.face_url,
+          position: player.position_code || '⭐',
+          shirtNumber: player.shirt_number,
+          overall: overall
+        };
+      });
+
+      // Limit to top 25 players to keep it clean, but sort them by position
+      formattedRoster.sort((a, b) => b.overall - a.overall);
+      const topRoster = formattedRoster.slice(0, 25);
       
-      if (isCaptainBug) {
-        fullName = 'Son Heung-min';
+      const top11 = topRoster.slice(0, 11);
+      const squadOverall = top11.length > 0 ? top11.reduce((acc, p) => acc + p.overall, 0) / top11.length : 0;
+      
+      if (squadOverall >= bestSquadOverall) {
+        bestSquadOverall = squadOverall;
+        bestSquad = squad;
+        bestRosterFormatted = topRoster;
       }
-      
-      const overall = getPlayerOverall(player.player_id);
-      
-      return {
-        id: player.player_id,
-        name: fullName,
-        face_url: player.face_url,
-        position: player.position_code,
-        shirtNumber: player.shirt_number,
-        overall: overall
-      };
+    }
+
+    // Sort best roster by position order
+    const posOrder: Record<string, number> = { 'GOL': 1, 'ZAG': 2, 'MC': 3, 'ATA': 4, '⭐': 5 };
+    bestRosterFormatted.sort((a, b) => {
+      const orderA = posOrder[a.position] || 99;
+      const orderB = posOrder[b.position] || 99;
+      if (orderA !== orderB) return orderA - orderB;
+      // Secondary sort by overall inside the same position
+      return b.overall - a.overall;
     });
+    
+    // Clean team name if it ends with any year (e.g. "São Paulo 1992")
+    let cleanTeamName = bestSquad.team_name;
+    if (league === 'brasileirao') {
+      cleanTeamName = cleanTeamName.replace(/\s\d{4}$/, '').trim();
+    }
 
     return NextResponse.json({
       team: {
-        name: randomSquad.team_name,
-        year: randomSquad.year,
-        tournament: randomSquad.tournament_name,
+        name: cleanTeamName,
+        year: bestSquad.year,
+        tournament: bestSquad.tournament_name,
       },
-      roster: formattedRoster
+      roster: bestRosterFormatted
     });
 
   } catch (error) {

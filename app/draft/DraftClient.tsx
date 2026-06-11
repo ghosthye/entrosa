@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Dice3, RefreshCcw, AlertCircle, Shield, Swords, Settings, CheckCircle2, Trophy } from 'lucide-react';
+import { Dice3, RefreshCcw, AlertCircle, Shield, Swords, Settings, CheckCircle2, Trophy, List } from 'lucide-react';
 import { Field, FormationNode } from '@/components/Field';
 import { SlotStatus } from '@/components/PlayerSlot';
 import { CopaModal } from '@/components/CopaModal';
+import { LeagueModal } from '@/components/LeagueModal';
 import { DraftLanding } from '@/components/DraftLanding';
+import { TeamSpinner } from '@/components/TeamSpinner';
 import { motion } from 'framer-motion';
 
 type Player = {
@@ -82,12 +84,239 @@ const FORMATIONS: Record<string, FormationData> = {
       ['pos_2', 'pos_3', 'pos_4', 'pos_5'],
       ['pos_1']
     ]
+  },
+  '4-2-3-1': {
+    name: '4-2-3-1',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['PE', 'ME', 'ATA', 'SA'], label: 'ME' },
+      { id: 'pos_10', expectedPositions: ['MEI', 'MC', 'SA'], label: 'MEI' },
+      { id: 'pos_7', expectedPositions: ['PD', 'MD', 'ATA', 'SA'], label: 'MD' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_8', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_2', expectedPositions: ['LE', 'LAD', 'ZAG'], label: 'LE' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_5', expectedPositions: ['LD', 'LAD', 'ZAG'], label: 'LD' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9'],
+      ['pos_11', 'pos_10', 'pos_7'],
+      ['pos_6', 'pos_8'],
+      ['pos_2', 'pos_3', 'pos_4', 'pos_5'],
+      ['pos_1']
+    ]
+  },
+  '3-5-2': {
+    name: '3-5-2',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_10', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['ME', 'PE', 'LAD', 'LE'], label: 'ME' },
+      { id: 'pos_8', expectedPositions: ['MC', 'MEI', 'VOL'], label: 'MC' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_7', expectedPositions: ['MC', 'MEI', 'VOL'], label: 'MC' },
+      { id: 'pos_5', expectedPositions: ['MD', 'PD', 'LAD', 'LD'], label: 'MD' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'VOL'], label: 'ZAG' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'VOL'], label: 'ZAG' },
+      { id: 'pos_2', expectedPositions: ['ZAG', 'LD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9', 'pos_10'],
+      ['pos_11', 'pos_8', 'pos_6', 'pos_7', 'pos_5'],
+      ['pos_4', 'pos_3', 'pos_2'],
+      ['pos_1']
+    ]
+  },
+  '3-4-3': {
+    name: '3-4-3',
+    slots: [
+      { id: 'pos_11', expectedPositions: ['PE', 'ATA', 'SA'], label: 'PE' },
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA'], label: 'CA' },
+      { id: 'pos_10', expectedPositions: ['PD', 'ATA', 'SA'], label: 'PD' },
+      { id: 'pos_8', expectedPositions: ['ME', 'LAD', 'LE', 'PE'], label: 'ME' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_7', expectedPositions: ['MC', 'VOL', 'MEI'], label: 'MC' },
+      { id: 'pos_5', expectedPositions: ['MD', 'LAD', 'LD', 'PD'], label: 'MD' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'VOL'], label: 'ZAG' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'VOL'], label: 'ZAG' },
+      { id: 'pos_2', expectedPositions: ['ZAG', 'LD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_11', 'pos_9', 'pos_10'],
+      ['pos_8', 'pos_6', 'pos_7', 'pos_5'],
+      ['pos_4', 'pos_3', 'pos_2'],
+      ['pos_1']
+    ]
+  },
+  '5-3-2': {
+    name: '5-3-2',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_10', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_8', expectedPositions: ['MC', 'MEI', 'ME', 'VOL'], label: 'MC' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_7', expectedPositions: ['MC', 'MEI', 'MD', 'VOL'], label: 'MC' },
+      { id: 'pos_5', expectedPositions: ['LE', 'LAD', 'ME', 'ZAG'], label: 'ALA' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'VOL'], label: 'ZAG' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'VOL'], label: 'ZAG' },
+      { id: 'pos_2', expectedPositions: ['ZAG', 'LD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_11', expectedPositions: ['LD', 'LAD', 'MD', 'ZAG'], label: 'ALA' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9', 'pos_10'],
+      ['pos_8', 'pos_6', 'pos_7'],
+      ['pos_5', 'pos_4', 'pos_3', 'pos_2', 'pos_11'],
+      ['pos_1']
+    ]
+  },
+  '5-2-3': {
+    name: '5-2-3',
+    slots: [
+      { id: 'pos_11', expectedPositions: ['PE', 'ATA', 'SA'], label: 'PE' },
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA'], label: 'CA' },
+      { id: 'pos_10', expectedPositions: ['PD', 'ATA', 'SA'], label: 'PD' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_8', expectedPositions: ['MC', 'VOL', 'MEI'], label: 'MC' },
+      { id: 'pos_5', expectedPositions: ['LE', 'LAD', 'ME', 'ZAG'], label: 'ALA' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'VOL'], label: 'ZAG' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'VOL'], label: 'ZAG' },
+      { id: 'pos_2', expectedPositions: ['ZAG', 'LD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_7', expectedPositions: ['LD', 'LAD', 'MD', 'ZAG'], label: 'ALA' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_11', 'pos_9', 'pos_10'],
+      ['pos_6', 'pos_8'],
+      ['pos_5', 'pos_4', 'pos_3', 'pos_2', 'pos_7'],
+      ['pos_1']
+    ]
+  },
+  '4-1-2-1-2': {
+    name: '4-1-2-1-2',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_10', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['MEI', 'MC', 'SA'], label: 'MEI' },
+      { id: 'pos_7', expectedPositions: ['ME', 'MC', 'VOL', 'PE'], label: 'ME' },
+      { id: 'pos_8', expectedPositions: ['MD', 'MC', 'VOL', 'PD'], label: 'MD' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_2', expectedPositions: ['LE', 'LAD', 'ZAG'], label: 'LE' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_5', expectedPositions: ['LD', 'LAD', 'ZAG'], label: 'LD' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9', 'pos_10'],
+      ['pos_11'],
+      ['pos_7', 'pos_8'],
+      ['pos_6'],
+      ['pos_2', 'pos_3', 'pos_4', 'pos_5'],
+      ['pos_1']
+    ]
+  },
+  '4-5-1': {
+    name: '4-5-1',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['ME', 'PE', 'MC'], label: 'ME' },
+      { id: 'pos_7', expectedPositions: ['MEI', 'MC'], label: 'MC' },
+      { id: 'pos_8', expectedPositions: ['MEI', 'MC'], label: 'MC' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_10', expectedPositions: ['MD', 'PD', 'MC'], label: 'MD' },
+      { id: 'pos_2', expectedPositions: ['LE', 'LAD', 'ZAG'], label: 'LE' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_5', expectedPositions: ['LD', 'LAD', 'ZAG'], label: 'LD' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9'],
+      ['pos_11', 'pos_7', 'pos_6', 'pos_8', 'pos_10'],
+      ['pos_2', 'pos_3', 'pos_4', 'pos_5'],
+      ['pos_1']
+    ]
+  },
+  '4-2-2-2': {
+    name: '4-2-2-2',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_10', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['MEI', 'ME', 'SA', 'PE'], label: 'MEI' },
+      { id: 'pos_7', expectedPositions: ['MEI', 'MD', 'SA', 'PD'], label: 'MEI' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_8', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_2', expectedPositions: ['LE', 'LAD', 'ZAG'], label: 'LE' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_5', expectedPositions: ['LD', 'LAD', 'ZAG'], label: 'LD' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9', 'pos_10'],
+      ['pos_11', 'pos_7'],
+      ['pos_6', 'pos_8'],
+      ['pos_2', 'pos_3', 'pos_4', 'pos_5'],
+      ['pos_1']
+    ]
+  },
+  '3-4-2-1': {
+    name: '3-4-2-1',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['MEI', 'SA', 'PE', 'ME'], label: 'MEI' },
+      { id: 'pos_10', expectedPositions: ['MEI', 'SA', 'PD', 'MD'], label: 'MEI' },
+      { id: 'pos_8', expectedPositions: ['ME', 'LAD', 'LE', 'PE'], label: 'ME' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_7', expectedPositions: ['MC', 'VOL', 'MEI'], label: 'MC' },
+      { id: 'pos_5', expectedPositions: ['MD', 'LAD', 'LD', 'PD'], label: 'MD' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'VOL'], label: 'ZAG' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'VOL'], label: 'ZAG' },
+      { id: 'pos_2', expectedPositions: ['ZAG', 'LD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9'],
+      ['pos_11', 'pos_10'],
+      ['pos_8', 'pos_6', 'pos_7', 'pos_5'],
+      ['pos_4', 'pos_3', 'pos_2'],
+      ['pos_1']
+    ]
+  },
+  '4-3-1-2': {
+    name: '4-3-1-2',
+    slots: [
+      { id: 'pos_9', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_10', expectedPositions: ['CA', 'ATA', 'SA'], label: 'ATA' },
+      { id: 'pos_11', expectedPositions: ['MEI', 'MC', 'SA'], label: 'MEI' },
+      { id: 'pos_7', expectedPositions: ['MC', 'ME', 'VOL'], label: 'MC' },
+      { id: 'pos_6', expectedPositions: ['VOL', 'MC', 'MEI'], label: 'VOL' },
+      { id: 'pos_8', expectedPositions: ['MC', 'MD', 'VOL'], label: 'MC' },
+      { id: 'pos_2', expectedPositions: ['LE', 'LAD', 'ZAG'], label: 'LE' },
+      { id: 'pos_3', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_4', expectedPositions: ['ZAG', 'LE', 'LD', 'LAD', 'VOL'], label: 'ZAG' },
+      { id: 'pos_5', expectedPositions: ['LD', 'LAD', 'ZAG'], label: 'LD' },
+      { id: 'pos_1', expectedPositions: ['GOL'], label: 'GOL' },
+    ],
+    layout: [
+      ['pos_9', 'pos_10'],
+      ['pos_11'],
+      ['pos_7', 'pos_6', 'pos_8'],
+      ['pos_2', 'pos_3', 'pos_4', 'pos_5'],
+      ['pos_1']
+    ]
   }
 };
 
 type SetupConfig = {
   formation: string;
   difficulty: 'easy' | 'hard';
+  league: 'worldcup' | 'brasileirao';
 };
 
 export function DraftClient() {
@@ -96,12 +325,13 @@ export function DraftClient() {
   
   const [slots, setSlots] = useState<Slot[]>([]);
   const [currentRoll, setCurrentRoll] = useState<RollResult | null>(null);
-  const [isRolling, setIsRolling] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
   const [skipsLeft, setSkipsLeft] = useState(3);
   const [mustPick, setMustPick] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
   const [showCopaModal, setShowCopaModal] = useState(false);
+  const [showLeagueModal, setShowLeagueModal] = useState(false);
 
   const isDraftComplete = slots.length > 0 && slots.every(s => s.player !== null);
 
@@ -117,17 +347,25 @@ export function DraftClient() {
       setSkipsLeft(s => s - 1);
     }
     
-    setIsRolling(true);
+    setIsSpinning(true);
     setSelectedPlayer(null);
+    setMustPick(true);
+
     try {
-      const res = await fetch('/api/draft/roll');
+      const url = new URL('/api/draft/roll', window.location.origin);
+      if (setup?.league) url.searchParams.append('league', setup.league);
+      if (setup?.difficulty) url.searchParams.append('difficulty', setup.difficulty);
+      
+      const res = await fetch(url.toString());
       const data = await res.json();
-      setCurrentRoll(data);
-      setMustPick(true);
+      
+      setTimeout(() => {
+        setCurrentRoll(data);
+        setIsSpinning(false);
+      }, 2000);
     } catch (e) {
       console.error(e);
-    } finally {
-      setIsRolling(false);
+      setIsSpinning(false);
     }
   };
 
@@ -153,24 +391,6 @@ export function DraftClient() {
     setSelectedPlayer(null);
   };
 
-  const autoFillDebug = () => {
-    setSlots(prev => prev.map((s, i) => {
-      if (s.player) return s;
-      return {
-        ...s,
-        player: {
-          id: `debug_player_${i}`,
-          name: `Debug ${s.label}`,
-          face_url: null,
-          position: s.label,
-          shirtNumber: i + 1,
-          overall: 80 + Math.floor(Math.random() * 15)
-        }
-      };
-    }));
-    setMustPick(false);
-  };
-
   const canAssignToSlot = (slot: Slot, player: Player | null) => {
     if (!player) return false;
     if (slot.player !== null) return false;
@@ -186,7 +406,7 @@ export function DraftClient() {
   if (!setup) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[70vh]">
-        <div className="bg-surface border border-border-color rounded-2xl p-8 shadow-2xl max-w-xl w-full flex flex-col gap-8 relative overflow-hidden">
+        <div className="bg-surface border border-border-color rounded-2xl p-8 shadow-2xl max-w-5xl w-full flex flex-col gap-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amarelo-gol/5 rounded-full blur-[100px] pointer-events-none"></div>
           
           <div className="text-center">
@@ -239,7 +459,14 @@ export function DraftClient() {
       <div className="w-full lg:w-[420px] flex flex-col gap-6 shrink-0 lg:sticky lg:top-4 z-10">
         
         {isDraftComplete ? (
-          <DraftSummaryPanel slots={slots} onSimulate={() => setShowCopaModal(true)} wasHardMode={setup.difficulty === 'hard'} />
+          <DraftSummaryPanel 
+            slots={slots} 
+            onSimulateCopa={() => setShowCopaModal(true)} 
+            onSimulateLeague={() => setShowLeagueModal(true)} 
+            onRestart={() => setSetup(null)}
+            wasHardMode={setup.difficulty === 'hard'} 
+            league={setup.league}
+          />
         ) : (
           <>
             {/* Roll Panel (Premium Glassmorphism) */}
@@ -261,7 +488,7 @@ export function DraftClient() {
                  </div>
                </div>
 
-              {mustPick && skipsLeft > 0 ? (
+              {mustPick && skipsLeft > 0 && !isSpinning ? (
                 <div className="flex flex-col gap-3 relative z-10">
                   <div className="flex items-center justify-between text-secondary text-xs font-mono uppercase tracking-widest bg-white/5 p-3 rounded-xl border border-white/5">
                     <span>Ação:</span>
@@ -269,7 +496,7 @@ export function DraftClient() {
                   </div>
                   <button 
                     onClick={handleRoll}
-                    disabled={isRolling}
+                    disabled={isSpinning}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-white/10 hover:border-white/30 hover:bg-white/5 text-secondary hover:text-white font-display text-base uppercase transition-all"
                   >
                     <RefreshCcw className="w-4 h-4" /> Pular ({skipsLeft} restantes)
@@ -278,14 +505,14 @@ export function DraftClient() {
               ) : (
                 <button 
                   onClick={handleRoll}
-                  disabled={isRolling || (mustPick && skipsLeft === 0)}
+                  disabled={isSpinning || (mustPick && skipsLeft === 0)}
                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-xl uppercase tracking-widest transition-all
-                    ${isRolling ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 
+                    ${isSpinning ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 
                       mustPick && skipsLeft === 0 ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5' :
                       'bg-gradient-to-r from-amarelo-gol to-yellow-400 text-black hover:scale-[1.03] shadow-[0_10px_30px_rgba(255,214,0,0.3)] hover:shadow-[0_15px_40px_rgba(255,214,0,0.5)]'
                     }`}
                 >
-                  {isRolling ? 'Sorteando...' : (
+                  {isSpinning ? 'Sorteando...' : (
                     <><Dice3 className="w-8 h-8" /> Rolar Equipe</>
                   )}
                 </button>
@@ -298,8 +525,10 @@ export function DraftClient() {
               )}
             </div>
 
-            {/* Roster List (Premium List) */}
-            {currentRoll && (
+            {/* Roster List or Spinner */}
+            {isSpinning ? (
+              <TeamSpinner league={setup?.league} />
+            ) : currentRoll ? (
               <div className="bg-[#121212]/80 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col overflow-hidden max-h-[380px] shadow-2xl relative">
                 {/* Team Header */}
                 <div className="p-5 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 relative">
@@ -352,7 +581,7 @@ export function DraftClient() {
                   })}
                 </div>
               </div>
-            )}
+            ) : null}
           </>
         )}
       </div>
@@ -366,10 +595,20 @@ export function DraftClient() {
       {showCopaModal && (
         <CopaModal
           onClose={() => setShowCopaModal(false)}
+          league={setup.league}
           playerTeam={slots.map(s => ({
             player: { name: s.player!.name, overall: s.player!.overall },
             slotId: s.id
           })) as any}
+          nodes2D={nodes}
+        />
+      )}
+
+      {/* LEAGUE MODAL */}
+      {showLeagueModal && (
+        <LeagueModal
+          onClose={() => setShowLeagueModal(false)}
+          teamOverall={Math.floor(slots.reduce((sum, s) => sum + (s.player?.overall || 0), 0) / slots.length)}
           nodes2D={nodes}
         />
       )}
@@ -382,72 +621,125 @@ export function DraftClient() {
 function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
   const [formation, setFormation] = useState('4-3-3');
   const [difficulty, setDifficulty] = useState<'easy'|'hard'>('easy');
+  const [league, setLeague] = useState<'worldcup'|'brasileirao'>('worldcup');
+
+  const previewFormationData = FORMATIONS[formation];
+  const previewNodes: FormationNode[][] = previewFormationData.layout.map(row => {
+    return row.map(slotId => {
+      const slot = previewFormationData.slots.find(s => s.id === slotId)!;
+      return {
+        id: slot.id,
+        position: slot.label as any,
+        status: 'empty' as SlotStatus,
+        tooltipInfo: slot.label
+      };
+    });
+  });
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Formation Selector */}
-      <div>
-        <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
-          1. Esquema Tático
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          {Object.keys(FORMATIONS).map(fmt => (
+    <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex-1 flex flex-col gap-8">
+        {/* League Selector */}
+        <div>
+          <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
+            1. Universo
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
-              key={fmt}
-              onClick={() => setFormation(fmt)}
-              className={`py-4 px-4 rounded-xl border-2 transition-all font-display text-xl ${formation === fmt ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+              onClick={() => setLeague('worldcup')}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${league === 'worldcup' ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
             >
-              {fmt}
+              <Trophy className="w-8 h-8" />
+              <span className="font-bold text-lg">COPA DO MUNDO</span>
+              <span className="text-xs text-center opacity-70">Seleções Históricas Mundiais</span>
             </button>
-          ))}
+
+            <button
+              onClick={() => setLeague('brasileirao')}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${league === 'brasileirao' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+            >
+              <Trophy className="w-8 h-8" />
+              <span className="font-bold text-lg">BRASILEIRÃO</span>
+              <span className="text-xs text-center opacity-70">Clubes Clássicos do Brasil</span>
+            </button>
+          </div>
         </div>
+
+        {/* Formation Selector */}
+        <div>
+          <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
+            2. Esquema Tático
+          </label>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {Object.keys(FORMATIONS).map(fmt => (
+              <button
+                key={fmt}
+                onClick={() => setFormation(fmt)}
+                className={`py-3 px-2 rounded-xl border-2 transition-all font-display text-lg sm:text-xl ${formation === fmt ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Difficulty Selector */}
+        <div>
+          <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
+            3. Dificuldade
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => setDifficulty('easy')}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${difficulty === 'easy' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+            >
+              <Shield className="w-8 h-8" />
+              <span className="font-bold text-lg">MODO FÁCIL</span>
+              <span className="text-xs text-center opacity-70">Times mais fortes, super craques e overalls visíveis.</span>
+              {difficulty === 'easy' && <CheckCircle2 className="absolute top-2 right-2 w-5 h-5" />}
+            </button>
+
+            <button
+              onClick={() => setDifficulty('hard')}
+              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative ${difficulty === 'hard' ? 'border-red-500 bg-red-500/10 text-red-500' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+            >
+              <Swords className="w-8 h-8" />
+              <span className="font-bold text-lg">MODO DIFÍCIL</span>
+              <span className="text-xs text-center opacity-70">Todos os times. Overalls ocultos (Escalação Cega).</span>
+              {difficulty === 'hard' && <CheckCircle2 className="absolute top-2 right-2 w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onStart({ formation, difficulty, league })}
+          className="w-full py-5 rounded-xl bg-amarelo-gol text-black font-display text-2xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_20px_rgba(255,214,0,0.3)] mt-4"
+        >
+          Entrar no Vestiário
+        </button>
       </div>
 
-      {/* Difficulty Selector */}
-      <div>
-        <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
-          2. Dificuldade da Simulação
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            onClick={() => setDifficulty('easy')}
-            className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${difficulty === 'easy' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
-          >
-            <Shield className="w-8 h-8" />
-            <span className="font-bold text-lg">MODO FÁCIL</span>
-            <span className="text-xs text-center opacity-70">Exibe os Overalls (OVR) na lista. IA tolerante.</span>
-            {difficulty === 'easy' && <CheckCircle2 className="absolute top-2 right-2 w-5 h-5" />}
-          </button>
-
-          <button
-            onClick={() => setDifficulty('hard')}
-            className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative ${difficulty === 'hard' ? 'border-red-500 bg-red-500/10 text-red-500' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
-          >
-            <Swords className="w-8 h-8" />
-            <span className="font-bold text-lg">MODO DIFÍCIL</span>
-            <span className="text-xs text-center opacity-70">Overalls ocultos (Escalação Cega). IA punitiva.</span>
-            {difficulty === 'hard' && <CheckCircle2 className="absolute top-2 right-2 w-5 h-5" />}
-          </button>
+      {/* Field Preview */}
+      <div className="hidden lg:flex flex-[0.8] justify-center items-center transform scale-90 origin-top">
+        <div className="flex flex-col items-center">
+          <span className="text-secondary text-xs font-mono uppercase tracking-widest mb-4">Pré-visualização Tática</span>
+          <Field nodes={previewNodes} onSlotClick={() => {}} />
         </div>
       </div>
-
-      <button
-        onClick={() => onStart({ formation, difficulty })}
-        className="w-full py-5 rounded-xl bg-amarelo-gol text-black font-display text-2xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_20px_rgba(255,214,0,0.3)] mt-4"
-      >
-        Entrar no Vestiário
-      </button>
     </div>
   );
 }
 
 // --- DRAFT SUMMARY PANEL COMPONENT ---
-function DraftSummaryPanel({ slots, onSimulate, wasHardMode }: { slots: Slot[], onSimulate: () => void, wasHardMode: boolean }) {
+function DraftSummaryPanel({ slots, onSimulateCopa, onSimulateLeague, onRestart, wasHardMode, league }: { slots: Slot[], onSimulateCopa: () => void, onSimulateLeague: () => void, onRestart: () => void, wasHardMode: boolean, league?: 'worldcup'|'brasileirao' }) {
   const players = slots.map(s => s.player!).filter(Boolean);
   
   const totalOvr = Math.floor(players.reduce((sum, p) => sum + p.overall, 0) / players.length) || 0;
   const bestPlayer = [...players].sort((a, b) => b.overall - a.overall)[0];
   const worstPlayer = [...players].sort((a, b) => a.overall - b.overall)[0];
+
+  const copaLabel = league === 'brasileirao' ? 'Simular Copa do Brasil' : 'Simular Copa';
+  const leagueLabel = league === 'brasileirao' ? 'Simular Brasileirão' : 'Simular Liga';
 
   return (
     <div className="bg-surface border border-amarelo-gol rounded-2xl p-6 shadow-[0_0_30px_rgba(255,214,0,0.15)] relative overflow-hidden flex flex-col gap-6">
@@ -484,12 +776,28 @@ function DraftSummaryPanel({ slots, onSimulate, wasHardMode }: { slots: Slot[], 
         )}
       </div>
 
-      <button
-        onClick={onSimulate}
-        className="w-full mt-2 py-4 rounded-xl bg-amarelo-gol text-black font-display text-xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_15px_rgba(255,214,0,0.3)] flex items-center justify-center gap-2"
-      >
-        <Trophy className="w-5 h-5" /> Simular Copa
-      </button>
+      <div className="flex flex-col gap-3">
+        <button
+          onClick={onSimulateCopa}
+          className="w-full py-4 rounded-xl bg-amarelo-gol text-black font-display text-xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_15px_rgba(255,214,0,0.3)] flex items-center justify-center gap-2"
+        >
+          <Trophy className="w-5 h-5" /> {copaLabel}
+        </button>
+
+        <button
+          onClick={onSimulateLeague}
+          className="w-full py-4 rounded-xl bg-verde-grama text-black font-display text-xl uppercase tracking-wider hover:bg-green-500 hover:scale-[1.02] transition-all shadow-[0_5px_15px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
+        >
+          <List className="w-5 h-5" /> {leagueLabel}
+        </button>
+        
+        <button
+          onClick={onRestart}
+          className="w-full mt-2 py-3 rounded-xl bg-white/5 text-white font-bold text-sm uppercase tracking-wider hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center gap-2"
+        >
+          <RefreshCcw className="w-4 h-4" /> Jogar Novamente
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Connection } from './connections';
+import { Connection } from './rules';
 
 export function calculateScore(connections: Connection[], errorsByPosition: Record<number, number>): number {
   let score = 0;

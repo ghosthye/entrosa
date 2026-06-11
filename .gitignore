@@ -1,4 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+﻿# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -58,3 +58,46 @@ goleada_spec.md
 
 # banco de dados duplicado na raiz
 worldcup.db
+
+# SQLite WAL journal files (gerados automaticamente, nao devem ir pro repo)
+*.db-shm
+*.db-wal
+
+# arquivos temporarios de scraping e debug (raiz)
+scratch.js
+ogol_test.html
+search_result.html
+inject_missing_teams.js
+analysis_output.md
+analyze_overalls.js
+check_coritiba.js
+check_league_count.js
+query_legends.js
+scrape_failed.js
+test_axios.js
+test_cheerio.js
+test_headers.js
+test_ogol.js
+test_positions.js
+test_positions_siblings.js
+test_selector.js
+implementation_plan.md
+
+# scripts de scraping temporarios
+scripts/catch_legends.js
+scripts/check_dupes.js
+scripts/check_schema.js
+scripts/clean_duplicates.js
+scripts/find_ogol_ids.js
+scripts/find_ogol_ids2.js
+scripts/inject_new_teams.js
+scripts/insert_historic_squads.js
+scripts/insert_santa_cruz.js
+scripts/scrape_mega_expansao.js
+scripts/scrape_new_teams.js
+scripts/scrape_novos_times.js
+scripts/search_ogol.js
+scripts/search_ogol2.js
+scripts/test_html.js
+scripts/test_id.js
+scripts/test_slugs.js
