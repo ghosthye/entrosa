@@ -10,8 +10,9 @@ export async function GET(request: Request) {
     const league = (searchParams.get('league') as 'worldcup' | 'brasileirao') || 'worldcup';
     const difficulty = searchParams.get('difficulty') || 'easy';
     const db = getDb(league);
-
-    const sampleSize = difficulty === 'easy' ? 8 : 1;
+    // Brasileirão: amostra menor para ter variedade (48 times, amostra de 2 já dá leve viés de qualidade)
+    // Copa: amostra maior pois há mais times e o jogador espera times fortes
+    const sampleSize = difficulty === 'easy' ? (league === 'brasileirao' ? 2 : 8) : 1;
 
     let randomSquadsStmt;
     if (league === 'brasileirao') {
