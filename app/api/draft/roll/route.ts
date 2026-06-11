@@ -16,9 +16,10 @@ export async function GET(request: Request) {
     let randomSquadsStmt;
     if (league === 'brasileirao') {
       randomSquadsStmt = db.prepare(`
-        SELECT s.tournament_id, s.team_id, t.team_name, SUBSTR(s.tournament_id, 4) as year, 'Brasileirão Histórico' as tournament_name
+        SELECT s.tournament_id, s.team_id, t.team_name, tr.year, tr.tournament_name
         FROM squads s
         JOIN teams t ON s.team_id = t.team_id
+        JOIN tournaments tr ON s.tournament_id = tr.tournament_id
         GROUP BY s.tournament_id, s.team_id
         ORDER BY RANDOM() LIMIT ?
       `);
