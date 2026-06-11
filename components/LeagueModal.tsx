@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Play, Trophy, FastForward, List, Pause, SkipForward, User, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Play, Trophy, FastForward, List, Pause, SkipForward, User, CheckCircle2, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LeagueTeam, 
@@ -12,6 +12,7 @@ import {
 } from '@/lib/leagueSimulation';
 import { FormationNode } from '@/components/Field';
 import { supabase } from '@/lib/supabase';
+import html2canvas from 'html2canvas';
 
 interface LeagueModalProps {
   onClose: () => void;
@@ -28,6 +29,8 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
   const [scorersMap, setScorersMap] = useState<Record<string, LeagueScorer>>({});
   const [loading, setLoading] = useState(true);
   const [showSummary, setShowSummary] = useState(true);
+
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Inicialização
   useEffect(() => {
@@ -228,6 +231,20 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
 
   const topScorerTeam = myTopScorer ? teams.find(t => t.id === myTopScorer.teamId) : null;
 
+  const handleDownloadCard = async () => {
+    if (!cardRef.current) return;
+    try {
+      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0a0a0a', scale: 2 });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `entrosa-brasileirao-${teamOverall}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to save image', err);
+    }
+  };
+
   const formatScorers = (scorers: string[]) => {
     if (!scorers || scorers.length === 0) return '';
     const counts = scorers.reduce((acc, name) => {
@@ -318,43 +335,138 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+                className="absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
               >
-                <div className="bg-[#1a1f1a] border border-amarelo-gol/30 p-8 rounded-3xl max-w-lg w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] text-center relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amarelo-gol to-transparent"></div>
-                  
-                  <Trophy className="w-20 h-20 text-amarelo-gol mx-auto mb-6 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
-                  
-                  <h2 className="text-4xl font-display mb-2 uppercase tracking-tighter">Fim de Temporada</h2>
-                  <p className="text-white/40 font-mono text-xs uppercase tracking-[0.3em] mb-6">Resumo de Desempenho</p>
-                  
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                      <div className="text-[10px] text-white/30 uppercase font-bold mb-1">Posição Final</div>
-                      <div className="text-3xl font-display text-amarelo-gol">{standings.findIndex(t => t.id === 'player') + 1}º</div>
-                    </div>
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                      <div className="text-[10px] text-white/30 uppercase font-bold mb-1">Pontos / V-E-D</div>
-                      <div className="text-3xl font-display text-white mb-1 leading-none">{teams.find(t => t.id === 'player')?.stats.pts}</div>
-                      <div className="text-[10px] font-mono text-white/40">{teams.find(t => t.id === 'player')?.stats.v}V - {teams.find(t => t.id === 'player')?.stats.e}E - {teams.find(t => t.id === 'player')?.stats.d}D</div>
-                    </div>
-                    
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 col-span-2 flex items-center justify-between">
-                      <div className="text-left">
-                         <div className="text-[10px] text-white/30 uppercase font-bold mb-1">Artilheiro do Time</div>
-                         <div className="text-xl font-bold text-white truncate max-w-[200px]">{myTopScorer ? myTopScorer.playerName : 'Nenhum'}</div>
+                <div className="w-full max-w-4xl">
+                  {/* Card exportável */}
+                  <div 
+                    ref={cardRef}
+                    className="border border-amarelo-gol/50 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(234,179,8,0.15)] bg-[#0a0f0a]"
+                  >
+                    <div className="flex flex-col md:flex-row">
+                      
+                      {/* Lado Esquerdo - Stats */}
+                      <div className="w-full md:w-[300px] shrink-0 flex flex-col justify-between bg-gradient-to-b from-[#0a0f0a] to-[#111] border-b md:border-b-0 md:border-r border-amarelo-gol/20 p-6 md:p-8 text-center md:text-left">
+                        
+                        <div>
+                          <div className="mb-6 flex flex-col items-center md:items-start gap-2">
+                            <img src="/logo.png" alt="ENTROSA" className="w-32 md:w-24 h-auto drop-shadow-[0_0_10px_rgba(234,179,8,0.3)]" />
+                            <div className="text-amarelo-gol/60 font-mono text-xs font-bold tracking-[0.3em] uppercase">BRASILEIRÃO</div>
+                          </div>
+                          
+                          {(() => {
+                            const pos = standings.findIndex(t => t.id === 'player') + 1;
+                            const isChampion = pos === 1;
+                            return (
+                              <>
+                                <div className={`text-4xl font-display mb-1 tracking-wide ${isChampion ? 'text-amarelo-gol drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]' : pos <= 4 ? 'text-blue-400' : pos >= 17 ? 'text-vermelho-erro' : 'text-white'}`}>
+                                  {isChampion ? 'CAMPEÃO!' : `${pos}º LUGAR`}
+                                </div>
+                                <div className="text-xs text-white/40 font-bold tracking-[0.2em] uppercase mb-8">
+                                  {isChampion ? 'A GLÓRIA ETERNA' : pos <= 4 ? 'CLASSIFICADO PRA LIBERTADORES' : pos >= 17 ? 'REBAIXADO' : 'TEMPORADA ENCERRADA'}
+                                </div>
+                              </>
+                            );
+                          })()}
+
+                          <div className="space-y-4">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Overall</span>
+                              <span className="text-3xl font-display text-amarelo-gol">{teamOverall}</span>
+                            </div>
+                            <div className="h-px bg-white/10"></div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Pontos</span>
+                              <span className="text-3xl font-display text-white">{teams.find(t => t.id === 'player')?.stats.pts}</span>
+                            </div>
+                            <div className="h-px bg-white/10"></div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-xs text-white/40 font-bold tracking-widest uppercase">V-E-D</span>
+                              <span className="text-xl font-display text-white/80">{teams.find(t => t.id === 'player')?.stats.v}-{teams.find(t => t.id === 'player')?.stats.e}-{teams.find(t => t.id === 'player')?.stats.d}</span>
+                            </div>
+                            <div className="h-px bg-white/10"></div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Gols Pró</span>
+                              <span className="text-3xl font-display text-verde-grama">{teams.find(t => t.id === 'player')?.stats.gf}</span>
+                            </div>
+                            <div className="h-px bg-white/10"></div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Sofridos</span>
+                              <span className="text-3xl font-display text-red-400">{teams.find(t => t.id === 'player')?.stats.ga}</span>
+                            </div>
+                            {myTopScorer && (
+                              <>
+                                <div className="h-px bg-white/10"></div>
+                                <div className="flex items-baseline justify-between">
+                                  <span className="text-xs text-white/40 font-bold tracking-widest uppercase truncate max-w-[120px]">⚽ {myTopScorer.playerName}</span>
+                                  <span className="text-3xl font-display text-verde-grama">{myTopScorer.goals}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-8">
+                          <span className="text-xs text-white/30 font-mono tracking-widest">entrosa.app</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                         <div className="text-3xl font-display text-verde-grama leading-none">{myTopScorer ? myTopScorer.goals : 0}</div>
-                         <div className="text-[10px] text-white/30 uppercase font-bold">Gols</div>
+
+                      {/* Lado Direito - Escalação */}
+                      <div className="flex-1 bg-[#124d29] relative p-4 sm:p-5 min-h-[400px] md:min-h-auto flex flex-col justify-center">
+                        {/* Linhas do campo */}
+                        <div className="absolute inset-0 pointer-events-none opacity-10">
+                          <div className="absolute inset-3 border-2 border-white"></div>
+                          <div className="absolute top-1/2 left-3 right-3 h-px bg-white"></div>
+                          <div className="absolute w-20 h-20 border-2 border-white rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+                        </div>
+                        
+                        <div className="relative z-10 flex flex-col gap-2 sm:gap-3 h-full justify-between">
+                          {nodes2D.map((row, ri) => (
+                            <div key={ri} className="flex flex-row justify-center gap-1.5 sm:gap-3">
+                              {row.map((node, ci) => (
+                                <div key={`${ri}-${ci}`} className="relative flex flex-col items-center bg-[#0d3d1f] border border-[#1D9E75]/50 rounded-lg px-2 sm:px-4 py-1 sm:py-1.5 min-w-[70px] sm:min-w-[110px] shadow-lg">
+                                  {node.playerOvr && (
+                                    <span className="absolute -top-1.5 -right-1.5 z-20 bg-amarelo-gol text-black text-[9px] sm:text-[10px] font-mono font-bold px-1 sm:px-1.5 py-0.5 rounded shadow-md">{node.playerOvr}</span>
+                                  )}
+                                  <span className="text-[9px] sm:text-[10px] font-mono text-white/50 uppercase tracking-wider mb-0.5 z-10 absolute top-0.5 left-1">{node.position}</span>
+                                  
+                                  {node.faceUrl ? (
+                                    <img src={`/api/image?url=${encodeURIComponent(node.faceUrl)}`} alt={node.playerName} className="w-10 h-10 sm:w-12 sm:h-12 object-contain mt-1 drop-shadow-md z-10" />
+                                  ) : (
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 mt-1 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-base border border-amarelo-gol/50 z-10">
+                                      {node.playerName?.charAt(0) || '—'}
+                                    </div>
+                                  )}
+                                  
+                                  <span className="text-xs sm:text-sm mt-1 font-display text-white uppercase leading-tight truncate w-full max-w-[65px] sm:max-w-[100px] text-center font-bold z-20">{node.playerName || '—'}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Watermark */}
+                        <div className="absolute bottom-3 right-4 opacity-40 pointer-events-none flex flex-col items-end gap-1">
+                          <img src="/logo.png" alt="ENTROSA" className="h-5 w-auto grayscale" />
+                          <span className="font-mono text-[8px] text-white tracking-widest font-bold">entrosa.app</span>
+                        </div>
                       </div>
+
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3">
+                  {/* Botões abaixo do card */}
+                  <div className="flex flex-col sm:flex-row gap-3 mt-4 justify-center items-center">
+                    <button 
+                      onClick={handleDownloadCard}
+                      className="px-8 py-3 bg-amarelo-gol text-black font-bold rounded-xl hover:bg-yellow-400 transition-colors shadow-[0_0_20px_rgba(234,179,8,0.3)] flex items-center gap-3"
+                    >
+                      <Download size={20} />
+                      SALVAR IMAGEM
+                    </button>
                     <button 
                       onClick={() => setShowSummary(false)}
-                      className="w-full py-4 bg-amarelo-gol text-black font-bold rounded-xl hover:bg-yellow-400 transition-all shadow-[0_10px_30px_rgba(234,179,8,0.2)]"
+                      className="px-8 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all border border-white/10 flex items-center gap-2"
                     >
                       VER TABELA E ESTATÍSTICAS
                     </button>
@@ -363,6 +475,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
               </motion.div>
             )}
           </AnimatePresence>
+
           
           {/* Standings Column */}
           <div className="flex-[3] p-4 overflow-y-auto border-r border-white/5 bg-black/20">
