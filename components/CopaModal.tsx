@@ -131,6 +131,9 @@ export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup' }:
     return idB - idA; // higher slotId (ata) first
   }).map(n => n.player.name ? (n.player.name.split(' ').pop() || 'Jogador') : 'Jogador') as string[];
 
+  // Extrair posições do campo (nodes2D) na mesma ordem que playerNamesArray
+  const playerPositionsArray = nodes2D.flat().filter(n => n.playerName).map(n => n.position) as string[];
+
   useEffect(() => {
     const url = league ? `/api/opponents?league=${league}` : '/api/opponents';
     fetch(url)
@@ -287,7 +290,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup' }:
     const opponent = getPlayerOpponentForRound();
     if (!opponent) return;
 
-    const result = simulateMatch(teamOverall, opponent.ovr, playerNamesArray, opponent.playerNames);
+    const result = simulateMatch(teamOverall, opponent.ovr, playerNamesArray, opponent.playerNames, false, playerPositionsArray, []);
 
     let cpuResult: any = null;
     if (tournamentPhase === 'Grupos') {
@@ -295,7 +298,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup' }:
       const cpuTeamBId = currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2');
       const cpuA = groupStandings.find(t => t.id === cpuTeamAId)!;
       const cpuB = groupStandings.find(t => t.id === cpuTeamBId)!;
-      cpuResult = simulateMatch(cpuA.ovr, cpuB.ovr, cpuA.playerNames, cpuB.playerNames);
+      cpuResult = simulateMatch(cpuA.ovr, cpuB.ovr, cpuA.playerNames, cpuB.playerNames, false, [], []);
       setCpuLiveMatch({ goalsA: 0, goalsB: 0 });
     }
 

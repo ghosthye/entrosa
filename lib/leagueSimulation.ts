@@ -50,7 +50,6 @@ export function generateRoundRobin(teams: LeagueTeam[]): LeagueMatch[] {
   const numRounds = n - 1;
   const half = n / 2;
   
-  const schedule: string[][] = []; // eslint-disable-line @typescript-eslint/no-unused-vars
   const tempTeams = [...teamIds];
 
   for (let r = 0; r < numRounds; r++) {

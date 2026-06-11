@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Play, Trophy, FastForward, List, Pause, SkipForward, User, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -28,8 +28,6 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
   const [scorersMap, setScorersMap] = useState<Record<string, LeagueScorer>>({});
   const [loading, setLoading] = useState(true);
   const [showSummary, setShowSummary] = useState(true);
-  
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Inicialização
   useEffect(() => {
@@ -255,7 +253,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
               <button 
                 onClick={() => setSimSpeed(5000)}
@@ -276,16 +274,16 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
                 <>
                   <button 
                     onClick={() => setIsAutoSimulating(!isAutoSimulating)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${isAutoSimulating ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-verde-grama text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]'}`}
+                    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${isAutoSimulating ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-verde-grama text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]'}`}
                   >
-                    {isAutoSimulating ? <><Pause size={18} /> PAUSAR</> : <><FastForward size={18} /> SIMULAR TUDO</>}
+                    {isAutoSimulating ? <><Pause size={16} /> <span className="hidden sm:inline">PAUSAR</span></> : <><FastForward size={16} /> <span className="hidden sm:inline">SIMULAR</span> TUDO</>}
                   </button>
                   <button 
                     disabled={isAutoSimulating}
                     onClick={simulateRound}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg font-bold disabled:opacity-50 transition-all hover:bg-zinc-200"
+                    className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-white text-black rounded-lg font-bold text-xs sm:text-sm disabled:opacity-50 transition-all hover:bg-zinc-200"
                   >
-                    <SkipForward size={18} /> +1 RODADA
+                    <SkipForward size={16} /> +1
                   </button>
                 </>
               ) : (
