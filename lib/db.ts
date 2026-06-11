@@ -9,16 +9,16 @@ export function getDb(league: 'worldcup' | 'brasileirao' = 'worldcup') {
     if (league === 'brasileirao') {
       if (!dbBrasileirao) {
         const dbPath = path.resolve(process.cwd(), 'data', 'brasileirao.db');
-        dbBrasileirao = new Database(dbPath, { readonly: false });
-        dbBrasileirao.pragma('journal_mode = DELETE');
+        // readonly: true é obrigatório no Vercel (filesystem somente leitura em produção)
+        dbBrasileirao = new Database(dbPath, { readonly: true });
       }
       return dbBrasileirao;
     }
 
     if (!dbWorldCup) {
       const dbPath = path.resolve(process.cwd(), 'data', 'worldcup.db');
-      dbWorldCup = new Database(dbPath, { readonly: false });
-      dbWorldCup.pragma('journal_mode = DELETE');
+      // readonly: true é obrigatório no Vercel (filesystem somente leitura em produção)
+      dbWorldCup = new Database(dbPath, { readonly: true });
     }
     return dbWorldCup;
   } catch (err) {
