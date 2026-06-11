@@ -528,7 +528,7 @@ export function DraftClient() {
             {/* Roster List or Spinner */}
             {isSpinning ? (
               <TeamSpinner league={setup?.league} />
-            ) : currentRoll ? (
+            ) : currentRoll?.team ? (
               <div className="bg-[#121212]/80 backdrop-blur-xl border border-white/10 rounded-3xl flex flex-col overflow-hidden max-h-[380px] shadow-2xl relative">
                 {/* Team Header */}
                 <div className="p-5 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 relative">
