@@ -254,27 +254,24 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
     return Object.entries(counts).map(([name, count]) => count > 1 ? `${name} (${count})` : name).join(', ');
   };
 
-  // Mobile tab state
-  const [mobileTab, setMobileTab] = useState<'tabela' | 'artilharia' | 'resultados'>('tabela');
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-0 sm:p-4 font-sans">
-      <div className="bg-[#0f110f] border border-white/10 sm:rounded-xl w-full sm:max-w-6xl h-full sm:h-[90vh] flex flex-col overflow-hidden relative text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 font-sans">
+      <div className="bg-[#0f110f] border border-white/10 rounded-xl max-w-6xl w-full h-[95vh] sm:h-[90vh] flex flex-col overflow-hidden relative text-white">
         
         {/* Header */}
-        <div className="flex justify-between items-center px-3 sm:px-6 py-2 sm:py-3 border-b border-white/10 bg-[#161a16] gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="bg-amarelo-gol text-black p-1.5 sm:p-2 rounded-lg">
-              <Trophy size={16} />
+        <div className="flex flex-col sm:flex-row justify-between items-center px-4 sm:px-6 py-3 border-b border-white/10 bg-[#161a16] gap-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-amarelo-gol text-black p-2 rounded-lg">
+              <Trophy size={20} />
             </div>
             <div>
-              <h2 className="font-display text-base sm:text-xl leading-none">BRASILEIRÃO</h2>
-              <p className="text-[8px] sm:text-[10px] text-white/40 font-bold tracking-widest uppercase mt-0.5">Rodada {currentRound}/{totalRounds}</p>
+              <h2 className="font-display text-xl leading-none">BRASILEIRÃO</h2>
+              <p className="text-[10px] text-white/40 font-bold tracking-widest uppercase mt-1">Simulação de Temporada</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            <div className="hidden sm:flex bg-black/40 p-1 rounded-lg border border-white/5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
               <button 
                 onClick={() => setSimSpeed(5000)}
                 className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${simSpeed === 5000 ? 'bg-white/10 text-white' : 'text-white/40'}`}
@@ -289,41 +286,43 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
               >RÁPIDO</button>
             </div>
 
-            {currentRound < totalRounds ? (
-              <>
-                <button 
-                  onClick={() => setIsAutoSimulating(!isAutoSimulating)}
-                  className={`flex items-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-[11px] sm:text-sm transition-all ${isAutoSimulating ? 'bg-red-500 text-white' : 'bg-verde-grama text-black'}`}
-                >
-                  {isAutoSimulating ? <><Pause size={14} /> <span className="hidden sm:inline">PAUSAR</span></> : <><FastForward size={14} /> <span className="hidden xs:inline">SIMULAR</span></>}
-                </button>
-                <button 
-                  disabled={isAutoSimulating}
-                  onClick={simulateRound}
-                  className="flex items-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-white text-black rounded-lg font-bold text-[11px] sm:text-sm disabled:opacity-50"
-                >
-                  <SkipForward size={14} /> +1
-                </button>
-              </>
-            ) : (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <button 
-                  onClick={() => setShowSummary(true)}
-                  className="bg-zinc-800 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-[11px] sm:text-sm border border-white/10"
-                >
-                  RESUMO
-                </button>
-                <button 
-                  onClick={onClose}
-                  className="bg-amarelo-gol text-black px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-bold text-[11px] sm:text-sm flex items-center gap-1"
-                >
-                  <CheckCircle2 size={14} /> <span className="hidden sm:inline">FINALIZAR</span><span className="sm:hidden">FIM</span>
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {currentRound < totalRounds ? (
+                <>
+                  <button 
+                    onClick={() => setIsAutoSimulating(!isAutoSimulating)}
+                    className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${isAutoSimulating ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-verde-grama text-black shadow-[0_0_15px_rgba(34,197,94,0.3)]'}`}
+                  >
+                    {isAutoSimulating ? <><Pause size={16} /> <span className="hidden sm:inline">PAUSAR</span></> : <><FastForward size={16} /> <span className="hidden sm:inline">SIMULAR</span> TUDO</>}
+                  </button>
+                  <button 
+                    disabled={isAutoSimulating}
+                    onClick={simulateRound}
+                    className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-white text-black rounded-lg font-bold text-xs sm:text-sm disabled:opacity-50 transition-all hover:bg-zinc-200"
+                  >
+                    <SkipForward size={16} /> +1
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setShowSummary(true)}
+                    className="bg-zinc-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-zinc-700 transition-all border border-white/10"
+                  >
+                    VER RESUMO
+                  </button>
+                  <button 
+                    onClick={onClose}
+                    className="bg-amarelo-gol text-black px-6 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(234,179,8,0.4)]"
+                  >
+                    <CheckCircle2 size={18} /> FINALIZAR TEMPORADA
+                  </button>
+                </div>
+              )}
+            </div>
 
-            <button onClick={onClose} className="text-white/40 hover:text-white p-1 sm:p-2">
-              <X size={20} />
+            <button onClick={onClose} className="text-white/40 hover:text-white p-2 transition-colors">
+              <X size={24} />
             </button>
           </div>
         </div>
@@ -469,7 +468,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
                       onClick={() => setShowSummary(false)}
                       className="px-8 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all border border-white/10 flex items-center gap-2"
                     >
-                      VER TABELA
+                      VER TABELA E ESTATÍSTICAS
                     </button>
                   </div>
                 </div>
@@ -477,71 +476,48 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
             )}
           </AnimatePresence>
 
-          {/* Mobile tabs */}
-          <div className="flex md:hidden border-b border-white/10 bg-[#161a16] shrink-0">
-            <button 
-              onClick={() => setMobileTab('tabela')}
-              className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${mobileTab === 'tabela' ? 'text-amarelo-gol border-b-2 border-amarelo-gol' : 'text-white/40'}`}
-            >
-              Tabela
-            </button>
-            <button 
-              onClick={() => setMobileTab('artilharia')}
-              className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${mobileTab === 'artilharia' ? 'text-amarelo-gol border-b-2 border-amarelo-gol' : 'text-white/40'}`}
-            >
-              Artilharia
-            </button>
-            <button 
-              onClick={() => setMobileTab('resultados')}
-              className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${mobileTab === 'resultados' ? 'text-amarelo-gol border-b-2 border-amarelo-gol' : 'text-white/40'}`}
-            >
-              Rodada
-            </button>
-          </div>
           
-          {/* Standings Column - always visible on desktop, tab-controlled on mobile */}
-          <div className={`flex-[3] p-3 sm:p-4 overflow-y-auto border-r border-white/5 bg-black/20 ${mobileTab !== 'tabela' ? 'hidden md:block' : ''}`}>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
-                <List size={14} className="text-amarelo-gol" /> Classificação
+          {/* Standings Column */}
+          <div className="flex-[3] p-4 overflow-y-auto border-r border-white/5 bg-black/20">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
+                <List size={14} className="text-amarelo-gol" /> Tabela de Classificação
               </h3>
-              <div className="text-[10px] font-mono text-white/20">{currentRound}/{totalRounds}</div>
+              <div className="text-[10px] font-mono text-white/20">RODADA {currentRound}/{totalRounds}</div>
             </div>
 
-            <div className="flex flex-col gap-0.5">
-              {/* Table header */}
-              <div className="flex text-[9px] sm:text-[10px] font-mono text-white/30 px-2 sm:px-3 uppercase pb-2 border-b border-white/5">
-                <div className="w-6 sm:w-8">#</div>
+            <div className="flex flex-col gap-1">
+              <div className="flex text-[10px] font-mono text-white/30 px-3 uppercase pb-2 border-b border-white/5">
+                <div className="w-8">Pos</div>
                 <div className="flex-1">Clube</div>
-                <div className="w-8 sm:w-10 text-center text-white">P</div>
-                <div className="hidden sm:block w-8 text-center">J</div>
-                <div className="hidden sm:block w-8 text-center">V</div>
-                <div className="hidden sm:block w-8 text-center">E</div>
-                <div className="hidden sm:block w-8 text-center">D</div>
-                <div className="w-8 sm:w-10 text-center">SG</div>
+                <div className="w-10 text-center text-white">P</div>
+                <div className="w-8 text-center">J</div>
+                <div className="w-8 text-center">V</div>
+                <div className="w-8 text-center">E</div>
+                <div className="w-8 text-center">D</div>
+                <div className="w-10 text-center">SG</div>
               </div>
 
-              {/* Team rows */}
-              <div className="flex flex-col gap-0.5 mt-0.5">
+              <div className="flex flex-col gap-1 mt-1">
                 {standings.map((team, idx) => (
                   <motion.div 
                     layout
                     key={team.id}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className={`flex items-center text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border transition-all ${team.id === 'player' ? 'bg-amarelo-gol/10 border-amarelo-gol/30' : 'bg-white/[0.02] border-white/5'} ${idx < 4 ? 'border-l-[3px] border-l-blue-500' : idx >= 16 ? 'border-l-[3px] border-l-red-500' : ''}`}
+                    className={`flex items-center text-xs px-3 py-2 rounded-lg border transition-all ${team.id === 'player' ? 'bg-amarelo-gol/10 border-amarelo-gol/30 shadow-[inset_0_0_15px_rgba(234,179,8,0.05)]' : 'bg-white/[0.02] border-white/5'} ${idx < 4 ? 'border-l-4 border-l-blue-500' : idx >= 16 ? 'border-l-4 border-l-red-500' : ''}`}
                   >
-                    <div className="w-6 sm:w-8 font-mono text-white/40 text-[10px]">{idx + 1}</div>
-                    <div className="flex-1 flex items-center gap-1 sm:gap-2 min-w-0">
-                      <span className="font-bold text-white uppercase truncate text-[11px] sm:text-xs">{team.name}</span>
-                      <span className="text-[8px] sm:text-[9px] text-white/20 font-mono shrink-0">'{String(team.year).slice(-2)}</span>
-                      {team.id === 'player' && <span className="text-[7px] sm:text-[8px] bg-amarelo-gol text-black px-1 rounded font-bold uppercase shrink-0">Você</span>}
+                    <div className="w-8 font-mono text-white/40">{idx + 1}</div>
+                    <div className="flex-1 flex items-center gap-2 truncate">
+                      <span className="font-bold text-white uppercase truncate">{team.name}</span>
+                      <span className="text-[9px] text-white/20 font-mono">'{String(team.year).slice(-2)}</span>
+                      {team.id === 'player' && <span className="text-[8px] bg-amarelo-gol text-black px-1 rounded font-bold uppercase">Você</span>}
                     </div>
-                    <div className="w-8 sm:w-10 text-center font-display text-sm sm:text-base text-amarelo-gol">{team.stats.pts}</div>
-                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{currentRound}</div>
-                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{team.stats.v}</div>
-                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{team.stats.e}</div>
-                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{team.stats.d}</div>
-                    <div className="w-8 sm:w-10 text-center font-mono font-bold text-white/80 text-[10px] sm:text-xs">{team.stats.sg > 0 ? `+${team.stats.sg}` : team.stats.sg}</div>
+                    <div className="w-10 text-center font-display text-base text-amarelo-gol">{team.stats.pts}</div>
+                    <div className="w-8 text-center font-mono text-white/40">{currentRound}</div>
+                    <div className="w-8 text-center font-mono text-white/40">{team.stats.v}</div>
+                    <div className="w-8 text-center font-mono text-white/40">{team.stats.e}</div>
+                    <div className="w-8 text-center font-mono text-white/40">{team.stats.d}</div>
+                    <div className="w-10 text-center font-mono font-bold text-white/80">{team.stats.sg > 0 ? `+${team.stats.sg}` : team.stats.sg}</div>
                   </motion.div>
                 ))}
               </div>
@@ -549,27 +525,27 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
           </div>
 
           {/* Right Column: Scorers & Last Results */}
-          <div className={`flex-[2] flex flex-col overflow-hidden bg-black/40 ${mobileTab === 'tabela' ? 'hidden md:flex' : ''}`}>
+          <div className="flex-[2] flex flex-col overflow-hidden bg-black/40">
             
             {/* Top Scorers */}
-            <div className={`flex-1 p-3 sm:p-4 overflow-y-auto border-b border-white/5 ${mobileTab === 'resultados' ? 'hidden md:block' : ''}`}>
-              <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <div className="flex-1 p-4 overflow-y-auto border-b border-white/5">
+              <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <User size={14} className="text-amarelo-gol" /> Artilharia
               </h3>
               
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 {topScorers.length > 0 ? topScorers.map((s, idx) => (
                   <div key={`${s.playerName}-${s.teamId}`} className="flex items-center justify-between bg-white/[0.03] p-2 rounded-lg border border-white/5">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      <div className="text-[10px] font-mono text-white/20 w-4 shrink-0">{idx + 1}</div>
-                      <div className="min-w-0">
-                        <div className="text-[11px] sm:text-xs font-bold text-white uppercase truncate">{s.playerName}</div>
-                        <div className="text-[9px] text-white/30 uppercase tracking-tighter truncate">{s.teamName}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-xs font-mono text-white/20 w-4">{idx + 1}</div>
+                      <div>
+                        <div className="text-xs font-bold text-white uppercase">{s.playerName}</div>
+                        <div className="text-[9px] text-white/30 uppercase tracking-tighter">{s.teamName}</div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center shrink-0 ml-2">
-                      <div className="text-base sm:text-lg font-display text-verde-grama leading-none">{s.goals}</div>
-                      <div className="text-[7px] sm:text-[8px] text-white/20 font-bold uppercase">GOLS</div>
+                    <div className="flex flex-col items-center">
+                      <div className="text-lg font-display text-verde-grama leading-none">{s.goals}</div>
+                      <div className="text-[8px] text-white/20 font-bold uppercase">GOLS</div>
                     </div>
                   </div>
                 )) : (
@@ -579,34 +555,34 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
             </div>
 
             {/* Last Round Matches */}
-            <div className={`flex-1 p-3 sm:p-4 overflow-y-auto bg-black/40 ${mobileTab === 'artilharia' ? 'hidden md:block' : ''}`}>
-              <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-3">
+            <div className="flex-1 p-4 overflow-y-auto bg-black/40">
+              <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">
                 Resultados da Rodada {currentRound}
               </h3>
               
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 {lastRoundMatches.map((m, idx) => {
                   const home = teams.find(t => t.id === m.homeId)!;
                   const away = teams.find(t => t.id === m.awayId)!;
                   return (
-                    <div key={idx} className={`p-2 sm:p-3 rounded-lg border flex flex-col gap-1 transition-all ${m.homeId === 'player' || m.awayId === 'player' ? 'bg-amarelo-gol/5 border-amarelo-gol/20' : 'bg-white/[0.02] border-white/5'}`}>
+                    <div key={idx} className={`p-3 rounded-lg border flex flex-col gap-1 transition-all ${m.homeId === 'player' || m.awayId === 'player' ? 'bg-amarelo-gol/5 border-amarelo-gol/20' : 'bg-white/[0.02] border-white/5'}`}>
                       <div className="flex items-center justify-between">
-                        <div className="flex-1 text-right text-[10px] sm:text-xs font-bold truncate pr-1 sm:pr-2 uppercase">
-                          {home.name}
+                        <div className="flex-1 text-right text-xs font-bold truncate pr-2 uppercase">
+                          {home.name} <span className="text-[9px] text-white/30 ml-1">'{String(home.year).slice(-2)}</span>
                         </div>
-                        <div className="bg-black/60 px-2 sm:px-3 py-0.5 sm:py-1 rounded font-display text-sm sm:text-lg flex gap-1.5 sm:gap-2 border border-white/10 min-w-[55px] sm:min-w-[70px] justify-center shrink-0">
+                        <div className="bg-black/60 px-3 py-1 rounded font-display text-lg flex gap-2 border border-white/10 min-w-[70px] justify-center">
                           <span className={m.homeGoals! > m.awayGoals! ? 'text-amarelo-gol' : 'text-white'}>{m.homeGoals}</span>
                           <span className="text-white/20">-</span>
                           <span className={m.awayGoals! > m.homeGoals! ? 'text-amarelo-gol' : 'text-white'}>{m.awayGoals}</span>
                         </div>
-                        <div className="flex-1 text-left text-[10px] sm:text-xs font-bold truncate pl-1 sm:pl-2 uppercase">
-                          {away.name}
+                        <div className="flex-1 text-left text-xs font-bold truncate pl-2 uppercase">
+                          <span className="text-[9px] text-white/30 mr-1">'{String(away.year).slice(-2)}</span> {away.name}
                         </div>
                       </div>
                       {(m.homeScorers?.length || 0) + (m.awayScorers?.length || 0) > 0 && (
-                        <div className="flex justify-between text-[7px] sm:text-[8px] text-white/40 italic px-1 mt-0.5">
+                        <div className="flex justify-between text-[8px] text-white/40 italic px-1 mt-1">
                           <div className="flex-1 text-right truncate" title={formatScorers(m.homeScorers || [])}>{formatScorers(m.homeScorers || [])}</div>
-                          <div className="w-12 sm:w-16"></div>
+                          <div className="w-16"></div>
                           <div className="flex-1 text-left truncate" title={formatScorers(m.awayScorers || [])}>{formatScorers(m.awayScorers || [])}</div>
                         </div>
                       )}
