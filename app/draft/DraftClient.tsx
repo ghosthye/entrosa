@@ -405,13 +405,13 @@ export function DraftClient() {
   // --- LOBBY UI ---
   if (!setup) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[70vh]">
-        <div className="bg-surface border border-border-color rounded-2xl p-8 shadow-2xl max-w-5xl w-full flex flex-col gap-8 relative overflow-hidden">
+      <div className="flex-1 flex items-center justify-center py-6 sm:py-12">
+        <div className="bg-surface border border-border-color rounded-2xl p-4 sm:p-8 shadow-2xl max-w-5xl w-full flex flex-col gap-6 sm:gap-8 relative overflow-hidden mx-2">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amarelo-gol/5 rounded-full blur-[100px] pointer-events-none"></div>
           
           <div className="text-center">
-            <h1 className="font-display text-4xl text-primary mb-2 uppercase tracking-wide">Lobby do Draft</h1>
-            <p className="text-secondary">Configure sua tática e dificuldade antes de rolar o dado.</p>
+            <h1 className="font-display text-3xl sm:text-4xl text-primary mb-1 sm:mb-2 uppercase tracking-wide">Lobby do Draft</h1>
+            <p className="text-sm sm:text-base text-secondary">Configure sua tática e dificuldade antes de rolar o dado.</p>
           </div>
 
           <LobbyForm onStart={startDraft} />
@@ -637,37 +637,37 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
   });
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
-      <div className="flex-1 flex flex-col gap-8">
+    <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
+      <div className="flex-1 flex flex-col gap-6 sm:gap-8">
         {/* League Selector */}
         <div>
-          <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
+          <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
             1. Universo
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <button
               onClick={() => setLeague('worldcup')}
-              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${league === 'worldcup' ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+              className={`p-3 sm:p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${league === 'worldcup' ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
             >
-              <Trophy className="w-8 h-8" />
-              <span className="font-bold text-lg">COPA DO MUNDO</span>
-              <span className="text-xs text-center opacity-70">Seleções Históricas Mundiais</span>
+              <Trophy className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="font-bold text-base sm:text-lg">COPA DO MUNDO</span>
+              <span className="text-[10px] sm:text-xs text-center opacity-70">Seleções Históricas Mundiais</span>
             </button>
 
             <button
               onClick={() => setLeague('brasileirao')}
-              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${league === 'brasileirao' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+              className={`p-3 sm:p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${league === 'brasileirao' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
             >
-              <Trophy className="w-8 h-8" />
-              <span className="font-bold text-lg">BRASILEIRÃO</span>
-              <span className="text-xs text-center opacity-70">Clubes Clássicos do Brasil</span>
+              <img src="/logo.png" alt="Brasileirão" className="w-6 h-6 sm:w-8 sm:h-8 object-contain" />
+              <span className="font-bold text-base sm:text-lg">BRASILEIRÃO</span>
+              <span className="text-[10px] sm:text-xs text-center opacity-70">Clubes Clássicos do Brasil</span>
             </button>
           </div>
         </div>
 
         {/* Formation Selector */}
         <div>
-          <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
+          <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
             2. Esquema Tático
           </label>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -675,7 +675,7 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
               <button
                 key={fmt}
                 onClick={() => setFormation(fmt)}
-                className={`py-3 px-2 rounded-xl border-2 transition-all font-display text-lg sm:text-xl ${formation === fmt ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+                className={`py-2 px-1 sm:py-3 sm:px-2 rounded-xl border-2 transition-all font-display text-base sm:text-xl ${formation === fmt ? 'border-amarelo-gol bg-amarelo-gol/10 text-amarelo-gol' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
               >
                 {fmt}
               </button>
@@ -685,35 +685,35 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
 
         {/* Difficulty Selector */}
         <div>
-          <label className="block text-secondary text-xs font-mono uppercase tracking-widest mb-3">
+          <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
             3. Dificuldade
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <button
               onClick={() => setDifficulty('easy')}
-              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${difficulty === 'easy' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+              className={`p-3 sm:p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative ${difficulty === 'easy' ? 'border-verde-grama bg-verde-grama/10 text-verde-grama' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
             >
-              <Shield className="w-8 h-8" />
-              <span className="font-bold text-lg">MODO FÁCIL</span>
-              <span className="text-xs text-center opacity-70">Times mais fortes, super craques e overalls visíveis.</span>
-              {difficulty === 'easy' && <CheckCircle2 className="absolute top-2 right-2 w-5 h-5" />}
+              <Shield className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="font-bold text-base sm:text-lg">MODO FÁCIL</span>
+              <span className="text-[10px] text-center opacity-70">Times mais fortes e OVR visível.</span>
+              {difficulty === 'easy' && <CheckCircle2 className="absolute top-2 right-2 w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
 
             <button
               onClick={() => setDifficulty('hard')}
-              className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative ${difficulty === 'hard' ? 'border-red-500 bg-red-500/10 text-red-500' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
+              className={`p-3 sm:p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 relative ${difficulty === 'hard' ? 'border-red-500 bg-red-500/10 text-red-500' : 'border-border-color bg-black/20 text-white/50 hover:border-white/20'}`}
             >
-              <Swords className="w-8 h-8" />
-              <span className="font-bold text-lg">MODO DIFÍCIL</span>
-              <span className="text-xs text-center opacity-70">Todos os times. Overalls ocultos (Escalação Cega).</span>
-              {difficulty === 'hard' && <CheckCircle2 className="absolute top-2 right-2 w-5 h-5" />}
+              <Swords className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="font-bold text-base sm:text-lg">MODO DIFÍCIL</span>
+              <span className="text-[10px] text-center opacity-70">Todos os times e OVR oculto.</span>
+              {difficulty === 'hard' && <CheckCircle2 className="absolute top-2 right-2 w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
           </div>
         </div>
 
         <button
           onClick={() => onStart({ formation, difficulty, league })}
-          className="w-full py-5 rounded-xl bg-amarelo-gol text-black font-display text-2xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_20px_rgba(255,214,0,0.3)] mt-4"
+          className="w-full py-4 sm:py-5 rounded-xl bg-amarelo-gol text-black font-display text-xl sm:text-2xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_20px_rgba(255,214,0,0.3)] mt-2"
         >
           Entrar no Vestiário
         </button>

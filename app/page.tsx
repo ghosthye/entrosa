@@ -55,7 +55,7 @@ export default function GlobalHub() {
             <div className="p-8 relative z-20 flex flex-col h-full">
               <div className="flex justify-between items-start mb-12">
                 <div className="bg-blue-600 text-white font-mono text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg animate-pulse">
-                  Em Desenvolvimento
+                  Modo Online em breve!
                 </div>
                 <RotateCw className="w-8 h-8 text-blue-500 group-hover:rotate-180 transition-transform duration-700" />
               </div>
