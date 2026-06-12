@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/useAuth';
 export function Header() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { user } = useAuth(); // This initializes the auth session on load
+  const { user, role } = useAuth(); // This initializes the auth session on load
   const pathname = usePathname();
   const isHub = pathname === '/';
 
