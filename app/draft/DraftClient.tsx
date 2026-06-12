@@ -317,6 +317,7 @@ type SetupConfig = {
   formation: string;
   difficulty: 'easy' | 'hard';
   league: 'worldcup' | 'brasileirao';
+  customTeamName?: string;
 };
 
 export function DraftClient() {
@@ -601,6 +602,7 @@ export function DraftClient() {
             slotId: s.id
           })) as any}
           nodes2D={nodes}
+          customTeamName={setup.customTeamName}
         />
       )}
 
@@ -610,6 +612,7 @@ export function DraftClient() {
           onClose={() => setShowLeagueModal(false)}
           teamOverall={Math.floor(slots.reduce((sum, s) => sum + (s.player?.overall || 0), 0) / slots.length)}
           nodes2D={nodes}
+          customTeamName={setup.customTeamName}
         />
       )}
 
@@ -622,6 +625,7 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
   const [formation, setFormation] = useState('4-3-3');
   const [difficulty, setDifficulty] = useState<'easy'|'hard'>('easy');
   const [league, setLeague] = useState<'worldcup'|'brasileirao'>('worldcup');
+  const [customTeamName, setCustomTeamName] = useState('');
 
   const previewFormationData = FORMATIONS[formation];
   const previewNodes: FormationNode[][] = previewFormationData.layout.map(row => {
@@ -639,10 +643,24 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
   return (
     <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
       <div className="flex-1 flex flex-col gap-6 sm:gap-8">
+        {/* Custom Team Name Input */}
+        <div>
+          <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
+            1. Nome do seu Clube
+          </label>
+          <input
+            type="text"
+            value={customTeamName}
+            onChange={(e) => setCustomTeamName(e.target.value)}
+            placeholder="Ex: Seu Time"
+            className="w-full bg-black/40 border border-border-color focus:border-amarelo-gol text-white text-base sm:text-lg rounded-xl p-3 sm:p-4 outline-none transition-all placeholder:text-white/20"
+          />
+        </div>
+
         {/* League Selector */}
         <div>
           <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
-            1. Universo
+            2. Universo
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <button
@@ -668,7 +686,7 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
         {/* Formation Selector */}
         <div>
           <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
-            2. Esquema Tático
+            3. Esquema Tático
           </label>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {Object.keys(FORMATIONS).map(fmt => (
@@ -686,7 +704,7 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
         {/* Difficulty Selector */}
         <div>
           <label className="block text-secondary text-[10px] sm:text-xs font-mono uppercase tracking-widest mb-2 sm:mb-3">
-            3. Dificuldade
+            4. Dificuldade
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
             <button
@@ -712,7 +730,7 @@ function LobbyForm({ onStart }: { onStart: (config: SetupConfig) => void }) {
         </div>
 
         <button
-          onClick={() => onStart({ formation, difficulty, league })}
+          onClick={() => onStart({ formation, difficulty, league, customTeamName: customTeamName.trim() || 'Seu Time' })}
           className="w-full py-4 sm:py-5 rounded-xl bg-amarelo-gol text-black font-display text-xl sm:text-2xl uppercase tracking-wider hover:bg-yellow-400 hover:scale-[1.02] transition-all shadow-[0_5px_20px_rgba(255,214,0,0.3)] mt-2"
         >
           Entrar no Vestiário

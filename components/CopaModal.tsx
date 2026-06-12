@@ -12,6 +12,7 @@ interface CopaModalProps {
   playerTeam: ChainNode[];
   nodes2D: FormationNode[][];
   league?: 'worldcup' | 'brasileirao';
+  customTeamName?: string;
 }
 
 interface GroupTeam {
@@ -52,7 +53,7 @@ function getRandomScorer(names: string[]): string {
   return names[index] || 'Jogador';
 }
 
-export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup' }: CopaModalProps) {
+export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup', customTeamName }: CopaModalProps) {
   const [opponents, setOpponents] = useState<HistoricTeam[]>([]);
   const [groupStandings, setGroupStandings] = useState<GroupTeam[]>([]);
   
@@ -141,7 +142,7 @@ export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup' }:
       .then((data: HistoricTeam[]) => {
         setOpponents(data);
         const playerT: GroupTeam = {
-          id: 'player', name: 'Você', isPlayer: true, ovr: teamOverall, playerNames: playerNamesArray as string[],
+          id: 'player', name: customTeamName || 'Você', isPlayer: true, ovr: teamOverall, playerNames: playerNamesArray as string[],
           pts: 0, pld: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0
         };
         const cpu1: GroupTeam = {

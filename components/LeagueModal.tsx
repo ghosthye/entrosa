@@ -10,7 +10,7 @@ import {
   getStandings, 
   getTopScorers 
 } from '@/lib/leagueSimulation';
-import { FormationNode } from '@/components/Field';
+import { Field, FormationNode } from '@/components/Field';
 import { supabase } from '@/lib/supabase';
 import html2canvas from 'html2canvas';
 
@@ -18,9 +18,10 @@ interface LeagueModalProps {
   onClose: () => void;
   nodes2D: FormationNode[][];
   teamOverall: number;
+  customTeamName?: string;
 }
 
-export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps) {
+export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName }: LeagueModalProps) {
   const [teams, setTeams] = useState<LeagueTeam[]>([]);
   const [matches, setMatches] = useState<LeagueMatch[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
@@ -35,6 +36,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
   const [activeTab, setActiveTab] = useState<'TABELA' | 'PARTIDAS' | 'ELENCO' | 'ESTADIO' | 'CONFIG'>('TABELA');
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [showFullTable, setShowFullTable] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<FormationNode | null>(null);
 
   // Inicialização
   useEffect(() => {
@@ -46,7 +48,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
         const players = nodes2D.flat().filter(n => n.playerName);
         const playerTeam: LeagueTeam = {
           id: 'player',
-          name: 'Seu Time',
+          name: customTeamName || 'Seu Time',
           year: 2024,
           ovr: teamOverall,
           playerNames: players.map(n => n.playerName!),
@@ -235,17 +237,32 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
 
   const topScorerTeam = myTopScorer ? teams.find(t => t.id === myTopScorer.teamId) : null;
 
-  const handleDownloadCard = async () => {
+  const handleDownloadCard = async (type: 'story' | 'feed') => {
     if (!cardRef.current) return;
+    
+    const originalHeight = cardRef.current.style.height;
+    const originalMinHeight = cardRef.current.style.minHeight;
+    
+    if (type === 'story') {
+      cardRef.current.style.minHeight = '693px';
+      cardRef.current.style.height = '693px';
+    } else {
+      cardRef.current.style.minHeight = '487px';
+      cardRef.current.style.height = '487px';
+    }
+
     try {
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0a0a0a', scale: 2 });
+      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0a0f0a', scale: 3, width: 390 });
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `entrosa-brasileirao-${teamOverall}.png`;
+      link.download = `entrosa-${type}-${teamOverall}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Failed to save image', err);
+    } finally {
+      cardRef.current.style.height = originalHeight;
+      cardRef.current.style.minHeight = originalMinHeight;
     }
   };
 
@@ -385,14 +402,21 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
                 ))}
               </div>
 
-              {!showFullTable && standings.length > 5 && (
+              {!showFullTable && standings.length > 5 ? (
                 <button 
                   onClick={() => setShowFullTable(true)}
                   className="w-full mt-3 py-3 border border-white/10 bg-white/5 rounded-xl text-xs font-bold text-white/60 uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
                 >
                   <List size={14} /> Ver Tabela Completa
                 </button>
-              )}
+              ) : showFullTable && standings.length > 5 ? (
+                <button 
+                  onClick={() => setShowFullTable(false)}
+                  className="w-full mt-3 py-3 border border-white/10 bg-white/5 rounded-xl text-xs font-bold text-white/60 uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ChevronUp size={14} /> Recolher Tabela
+                </button>
+              ) : null}
             </div>
 
             {/* Artilharia */}
@@ -488,41 +512,62 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
 
         {/* ELENCO TAB */}
         {activeTab === 'ELENCO' && (
-          <div className="p-4 flex flex-col gap-6">
-            <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
-              <Users size={14} className="text-amarelo-gol" /> Seu Elenco
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {nodes2D.flat().filter(n => n.playerName).sort((a,b) => (b.playerOvr||0) - (a.playerOvr||0)).map((player, idx) => (
-                <div key={idx} className="bg-gradient-to-br from-[#1a1f1a] to-[#0a0f0a] border border-white/10 rounded-xl p-3 flex flex-col relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 opacity-10">
-                    <Users size={40} />
-                  </div>
-                  
-                  <div className="flex justify-between items-start mb-2 relative z-10">
-                    <span className="text-[10px] font-mono font-bold bg-white/10 px-2 py-0.5 rounded text-white/60">{player.position}</span>
-                    <span className="font-display text-lg text-amarelo-gol leading-none">{player.playerOvr}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-auto relative z-10">
-                    {player.faceUrl ? (
-                      <img src={`/api/image?url=${encodeURIComponent(player.faceUrl)}`} alt="" className="w-8 h-8 object-contain drop-shadow-md" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">{player.playerName?.charAt(0)}</div>
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-white uppercase truncate w-[80px]">{player.playerName}</span>
-                      <span className="text-[9px] text-white/40 font-mono uppercase">{player.playerCountry?.slice(0,3) || 'BRA'}</span>
-                    </div>
-                  </div>
-                  
-                  <button className="mt-3 w-full py-1.5 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold text-white/50 hover:bg-white/10 transition-colors uppercase tracking-widest">
-                    Escalar
-                  </button>
-                </div>
-              ))}
+          <div className="flex flex-col h-[600px] overflow-hidden relative">
+            <div className="p-4 flex items-center justify-between z-10 relative">
+              <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
+                <Users size={14} className="text-amarelo-gol" /> Seu Elenco
+              </h3>
             </div>
+            
+            <div className="flex-1 flex justify-center items-start pt-4 relative z-0 overflow-y-auto custom-scrollbar">
+              <div className="transform scale-[0.85] origin-top pb-20">
+                <Field 
+                  nodes={nodes2D} 
+                  onSlotClick={(id) => {
+                    const node = nodes2D.flat().find(n => n.id === id);
+                    if (node && node.playerName) {
+                      setSelectedPlayer(node);
+                    }
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Player Details Modal/Panel */}
+            <AnimatePresence>
+              {selectedPlayer && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  className="absolute bottom-6 left-4 right-4 bg-gradient-to-t from-[#121612] to-[#1a201a] border border-amarelo-gol/30 rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-50 flex items-center gap-4"
+                >
+                  <button 
+                    onClick={() => setSelectedPlayer(null)}
+                    className="absolute top-2 right-2 text-white/30 hover:text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                  
+                  {selectedPlayer.faceUrl ? (
+                    <img src={`/api/image?url=${encodeURIComponent(selectedPlayer.faceUrl)}`} alt="" className="w-16 h-16 object-contain drop-shadow-xl" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center font-bold text-2xl border-2 border-white/5">{selectedPlayer.playerName?.charAt(0)}</div>
+                  )}
+                  
+                  <div className="flex flex-col flex-1">
+                    <span className="text-[10px] font-mono text-amarelo-gol uppercase tracking-widest mb-1">{selectedPlayer.position}</span>
+                    <span className="font-bold text-lg text-white uppercase leading-none mb-1">{selectedPlayer.playerName}</span>
+                    <span className="text-xs text-white/50">{selectedPlayer.playerCountry || 'Brasil'}</span>
+                  </div>
+                  
+                  <div className="flex flex-col items-center justify-center bg-black/40 border border-white/5 p-3 rounded-xl min-w-[60px]">
+                    <span className="text-2xl font-display text-amarelo-gol leading-none">{selectedPlayer.playerOvr}</span>
+                    <span className="text-[8px] uppercase tracking-widest text-white/40 font-bold mt-1">OVR</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -658,137 +703,115 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
                 <X size={20} />
               </button>
               
-              {/* Card exportável */}
-              <div 
-                ref={cardRef}
-                className="border border-amarelo-gol/50 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(234,179,8,0.15)] bg-[#0a0f0a]"
-              >
-                <div className="flex flex-col md:flex-row">
+              {/* Card exportável Mobile-First */}
+              <div className="flex flex-col items-center gap-4 w-full">
+                <div 
+                  ref={cardRef}
+                  id="share-card"
+                  className="w-[390px] min-h-[693px] border border-amarelo-gol/50 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(234,179,8,0.15)] bg-[#0a0f0a] flex flex-col relative"
+                >
+                  {/* Background fx */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#1a201a] via-[#0a0f0a] to-[#0a0f0a] pointer-events-none"></div>
                   
-                  {/* Lado Esquerdo - Stats */}
-                  <div className="w-full md:w-[300px] shrink-0 flex flex-col justify-between bg-gradient-to-b from-[#0a0f0a] to-[#111] border-b md:border-b-0 md:border-r border-amarelo-gol/20 p-6 md:p-8 text-center md:text-left">
+                  {/* Top Section - Stats */}
+                  <div className="relative z-10 flex flex-col items-center p-6 pb-2 text-center border-b border-white/5">
+                    <img src="/logo.png" alt="ENTROSA" className="h-8 w-auto mb-2 drop-shadow-[0_0_10px_rgba(234,179,8,0.3)]" />
+                    <div className="text-amarelo-gol/80 font-mono text-[9px] font-bold tracking-[0.3em] uppercase mb-4">BRASILEIRÃO</div>
                     
-                    <div>
-                      <div className="mb-6 flex flex-col items-center md:items-start gap-2">
-                        <img src="/logo.png" alt="ENTROSA" className="w-24 h-auto drop-shadow-[0_0_10px_rgba(234,179,8,0.3)]" />
-                        <div className="text-amarelo-gol/60 font-mono text-[10px] font-bold tracking-[0.3em] uppercase">BRASILEIRÃO</div>
-                      </div>
-                      
-                      {(() => {
-                        const pos = standings.findIndex(t => t.id === 'player') + 1;
-                        const isChampion = pos === 1;
-                        return (
-                          <>
-                            <div className={`text-4xl font-display mb-1 tracking-wide ${isChampion ? 'text-amarelo-gol drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]' : pos <= 4 ? 'text-blue-400' : pos >= 17 ? 'text-vermelho-erro' : 'text-white'}`}>
-                              {isChampion ? 'CAMPEÃO!' : `${pos}º LUGAR`}
-                            </div>
-                            <div className="text-[10px] text-white/40 font-bold tracking-[0.2em] uppercase mb-8">
-                              {isChampion ? 'A GLÓRIA ETERNA' : pos <= 4 ? 'CLASSIFICADO PRA LIBERTADORES' : pos >= 17 ? 'REBAIXADO' : 'TEMPORADA ENCERRADA'}
-                            </div>
-                          </>
-                        );
-                      })()}
+                    {(() => {
+                      const pos = standings.findIndex(t => t.id === 'player') + 1;
+                      const isChampion = pos === 1;
+                      return (
+                        <>
+                          <div className={`text-4xl font-display mb-1 tracking-wider leading-none ${isChampion ? 'text-amarelo-gol drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]' : pos <= 4 ? 'text-blue-400' : pos >= 17 ? 'text-vermelho-erro' : 'text-white'}`}>
+                            {isChampion ? 'CAMPEÃO!' : `${pos}º LUGAR`}
+                          </div>
+                          <div className="text-[9px] text-white/50 font-bold tracking-[0.2em] uppercase mb-4 bg-white/5 px-3 py-1 rounded-full">
+                            {customTeamName || 'SEU TIME'}
+                          </div>
+                        </>
+                      );
+                    })()}
 
-                      <div className="space-y-4">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] text-white/40 font-bold tracking-widest uppercase">Overall</span>
-                          <span className="text-3xl font-display text-amarelo-gol">{teamOverall}</span>
-                        </div>
-                        <div className="h-px bg-white/10"></div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] text-white/40 font-bold tracking-widest uppercase">Pontos</span>
-                          <span className="text-3xl font-display text-white">{teams.find(t => t.id === 'player')?.stats.pts}</span>
-                        </div>
-                        <div className="h-px bg-white/10"></div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] text-white/40 font-bold tracking-widest uppercase">V-E-D</span>
-                          <span className="text-xl font-display text-white/80">{teams.find(t => t.id === 'player')?.stats.v}-{teams.find(t => t.id === 'player')?.stats.e}-{teams.find(t => t.id === 'player')?.stats.d}</span>
-                        </div>
-                        <div className="h-px bg-white/10"></div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] text-white/40 font-bold tracking-widest uppercase">Gols Pró</span>
-                          <span className="text-3xl font-display text-verde-grama">{teams.find(t => t.id === 'player')?.stats.gf}</span>
-                        </div>
-                        <div className="h-px bg-white/10"></div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] text-white/40 font-bold tracking-widest uppercase">Sofridos</span>
-                          <span className="text-3xl font-display text-red-400">{teams.find(t => t.id === 'player')?.stats.ga}</span>
-                        </div>
-                        {myTopScorer && (
-                          <>
-                            <div className="h-px bg-white/10"></div>
-                            <div className="flex items-baseline justify-between">
-                              <span className="text-[10px] text-white/40 font-bold tracking-widest uppercase truncate max-w-[120px]">⚽ {myTopScorer.playerName}</span>
-                              <span className="text-3xl font-display text-verde-grama">{myTopScorer.goals}</span>
-                            </div>
-                          </>
-                        )}
+                    <div className="flex gap-4 w-full px-2 mb-2">
+                      <div className="flex-1 bg-black/40 border border-white/10 rounded-xl p-2 flex flex-col items-center justify-center">
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest font-bold">PTS</span>
+                        <span className="text-2xl font-display text-white">{teams.find(t => t.id === 'player')?.stats.pts}</span>
                       </div>
-                    </div>
-
-                    <div className="mt-8">
-                      <span className="text-[10px] text-white/30 font-mono tracking-widest">entrosa.app</span>
+                      <div className="flex-1 bg-black/40 border border-amarelo-gol/20 rounded-xl p-2 flex flex-col items-center justify-center">
+                        <span className="text-[9px] text-amarelo-gol/50 uppercase tracking-widest font-bold">OVR</span>
+                        <span className="text-2xl font-display text-amarelo-gol">{teamOverall}</span>
+                      </div>
+                      <div className="flex-1 bg-black/40 border border-verde-grama/20 rounded-xl p-2 flex flex-col items-center justify-center">
+                        <span className="text-[9px] text-verde-grama/50 uppercase tracking-widest font-bold">GOLS</span>
+                        <span className="text-2xl font-display text-verde-grama">{teams.find(t => t.id === 'player')?.stats.gf}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Lado Direito - Escalação */}
-                  <div className="flex-1 bg-[#124d29] relative p-4 sm:p-5 min-h-[400px] md:min-h-auto flex flex-col justify-center">
-                    {/* Linhas do campo */}
-                    <div className="absolute inset-0 pointer-events-none opacity-10">
-                      <div className="absolute inset-3 border-2 border-white"></div>
-                      <div className="absolute top-1/2 left-3 right-3 h-px bg-white"></div>
+                  {/* Bottom Section - Pitch */}
+                  <div className="relative z-10 flex-1 bg-[#124d29] p-4 flex flex-col justify-center min-h-[380px]">
+                    <div className="absolute inset-0 pointer-events-none opacity-20">
+                      <div className="absolute inset-2 border-2 border-white"></div>
+                      <div className="absolute top-1/2 left-2 right-2 h-px bg-white"></div>
                       <div className="absolute w-20 h-20 border-2 border-white rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
                     </div>
                     
-                    <div className="relative z-10 flex flex-col gap-2 sm:gap-3 h-full justify-between">
+                    <div className="relative z-10 flex flex-col gap-3 h-full justify-between py-2">
                       {nodes2D.map((row, ri) => (
-                        <div key={ri} className="flex flex-row justify-center gap-1.5 sm:gap-3">
+                        <div key={ri} className="flex flex-row justify-center gap-2">
                           {row.map((node, ci) => (
-                            <div key={`${ri}-${ci}`} className="relative flex flex-col items-center bg-[#0d3d1f] border border-[#1D9E75]/50 rounded-lg px-2 sm:px-4 py-1 sm:py-1.5 min-w-[70px] sm:min-w-[110px] shadow-lg">
+                            <div key={`${ri}-${ci}`} className="relative flex flex-col items-center bg-[#0d3d1f] border border-[#1D9E75]/50 rounded-lg px-2 py-1 w-[70px] shadow-lg">
                               {node.playerOvr && (
-                                <span className="absolute -top-1.5 -right-1.5 z-20 bg-amarelo-gol text-black text-[9px] font-mono font-bold px-1 py-0.5 rounded shadow-md">{node.playerOvr}</span>
+                                <span className="absolute -top-1.5 -right-1.5 z-20 bg-amarelo-gol text-black text-[8px] font-mono font-bold px-1 py-0.5 rounded shadow-md">{node.playerOvr}</span>
                               )}
-                              <span className="text-[8px] font-mono text-white/50 uppercase tracking-wider mb-0.5 z-10 absolute top-0.5 left-1">{node.position}</span>
+                              <span className="text-[7px] font-mono text-white/60 uppercase tracking-wider mb-0.5 z-10 absolute top-0.5 left-1">{node.position}</span>
                               
                               {node.faceUrl ? (
-                                <img src={`/api/image?url=${encodeURIComponent(node.faceUrl)}`} alt={node.playerName} className="w-10 h-10 object-contain mt-1 drop-shadow-md z-10" />
+                                <img src={`/api/image?url=${encodeURIComponent(node.faceUrl)}`} alt={node.playerName} className="w-8 h-8 object-contain mt-1 drop-shadow-md z-10" />
                               ) : (
-                                <div className="w-8 h-8 mt-1 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-sm border border-amarelo-gol/50 z-10">
+                                <div className="w-7 h-7 mt-1 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-[10px] border border-amarelo-gol/50 z-10">
                                   {node.playerName?.charAt(0) || '—'}
                                 </div>
                               )}
                               
-                              <span className="text-[10px] mt-1 font-display text-white uppercase leading-tight truncate w-full max-w-[65px] text-center font-bold z-20">{node.playerName || '—'}</span>
+                              <span className="text-[9px] mt-1 font-bold text-white uppercase leading-tight truncate w-full text-center z-20">{node.playerName || '—'}</span>
                             </div>
                           ))}
                         </div>
                       ))}
                     </div>
-                    
-                    <div className="absolute bottom-3 right-4 opacity-40 pointer-events-none flex flex-col items-end gap-1">
-                      <img src="/logo.png" alt="ENTROSA" className="h-4 w-auto grayscale" />
-                      <span className="font-mono text-[8px] text-white tracking-widest font-bold">entrosa.app</span>
-                    </div>
                   </div>
 
+                  {/* Footer */}
+                  <div className="relative z-10 bg-[#0a0f0a] py-3 text-center border-t border-white/10">
+                    <span className="font-mono text-[10px] text-white/30 tracking-[0.2em]">ENTROSA.APP</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Botões abaixo do card */}
-              <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center items-center">
-                <button 
-                  onClick={handleDownloadCard}
-                  className="w-full sm:w-auto px-8 py-3.5 bg-amarelo-gol text-black font-bold rounded-xl hover:bg-yellow-400 transition-colors shadow-[0_0_20px_rgba(234,179,8,0.3)] flex items-center justify-center gap-3"
-                >
-                  <Download size={20} />
-                  SALVAR IMAGEM
-                </button>
-                <button 
-                  onClick={() => setShowSummary(false)}
-                  className="w-full sm:w-auto px-8 py-3.5 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all border border-white/10 flex items-center justify-center gap-2"
-                >
-                  FECHAR E VER TABELA
-                </button>
+                {/* Botões abaixo do card */}
+                <div className="flex flex-col gap-2 w-[390px] mt-4">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleDownloadCard('story')}
+                      className="flex-1 py-3.5 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-[0_5px_15px_rgba(219,39,119,0.3)] text-[11px] uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <Download size={14} /> Story Instagram
+                    </button>
+                    <button 
+                      onClick={() => handleDownloadCard('feed')}
+                      className="flex-1 py-3.5 bg-[#25D366] text-black font-bold rounded-xl hover:bg-[#1fb355] transition-all shadow-[0_5px_15px_rgba(37,211,102,0.3)] text-[11px] uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <Download size={14} /> WhatsApp
+                    </button>
+                  </div>
+                  <button 
+                    onClick={() => setShowSummary(false)}
+                    className="w-full py-4 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all border border-white/10 flex items-center justify-center gap-2 text-xs uppercase tracking-widest mt-1"
+                  >
+                    FECHAR E VER TABELA
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
