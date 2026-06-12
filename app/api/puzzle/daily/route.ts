@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-export const dynamic = 'force-dynamic';
-import { getDailyPuzzle } from '@/lib/daily';
 import { getDb } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +12,44 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Date is required' }, { status: 400 });
     }
 
-    const todayPuzzle = getDailyPuzzle(dateStr);
-    
+    const launchDate = new Date('2026-06-08');
+    const currentDate = new Date(dateStr);
+    const diffTime = currentDate.getTime() - launchDate.getTime();
+    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+
     // Calculate tomorrow's date
     const today = new Date(dateStr);
     today.setDate(today.getDate() + 1);
     const tomorrowStr = today.toISOString().split('T')[0];
-    const tomorrowPuzzle = getDailyPuzzle(tomorrowStr);
+
+    // Buscar no Supabase os desafios de hoje e de amanhã
+    const { data: puzzles, error } = await supabaseAdmin
+      .from('daily_puzzles')
+      .select('*')
+      .in('date', [dateStr, tomorrowStr]);
+
+    let todayPuzzleData = puzzles?.find(p => p.date === dateStr);
+    let tomorrowPuzzleData = puzzles?.find(p => p.date === tomorrowStr);
+
+    const todayPuzzle = todayPuzzleData ? {
+      formation: todayPuzzleData.formation,
+      startingPlayerId: todayPuzzleData.starting_player_id,
+      puzzleNumber: diffDays
+    } : {
+      formation: '4-3-3',
+      startingPlayerId: 'P-38906', // Pelé fallback
+      puzzleNumber: diffDays
+    };
+
+    const tomorrowPuzzle = tomorrowPuzzleData ? {
+      formation: tomorrowPuzzleData.formation,
+      startingPlayerId: tomorrowPuzzleData.starting_player_id,
+      puzzleNumber: diffDays + 1
+    } : {
+      formation: '4-3-3',
+      startingPlayerId: 'P-38906',
+      puzzleNumber: diffDays + 1
+    };
 
     const db = getDb();
     
