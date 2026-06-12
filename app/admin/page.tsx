@@ -12,19 +12,14 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    totalDrafts: 0,
-    totalGoals: 0,
-    activeSaves: 0
-  });
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
         // Obter número de usuários e agregar estatísticas
-        const { data: profiles, error: err1 } = await supabase.from('profiles').select('draft_total_matches, draft_total_goals');
+        const { data: profiles, error: err1 } = await supabase.from('profiles').select('id, name, draft_total_matches, draft_total_goals, created_at');
         
         let totalDrafts = 0;
         let totalGoals = 0;
@@ -35,15 +30,80 @@ export default function AdminDashboard() {
           });
         }
 
-        // Obter número de saves ativos
-        const { count: savesCount, error: err2 } = await supabase.from('saves').select('*', { count: 'exact', head: true }).eq('status', 'in_progress');
+        // Obter número de saves ativos e os saves mais recentes
+        const { data: saves, count: savesCount } = await supabase.from('saves')
+          .select('mode, status, last_synced_at, profiles(name)', { count: 'exact' });
+
+        const activeSavesCount = saves ? saves.filter(s => s.status === 'in_progress').length : 0;
+
+        // Obter os duelos mais recentes
+        const { data: duels } = await supabase.from('duels')
+          .select('creator_name, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
 
         setStats({
           totalUsers: profiles?.length || 0,
           totalDrafts,
           totalGoals,
-          activeSaves: savesCount || 0
+          activeSaves: activeSavesCount
         });
+
+        // Montar a timeline de atividades
+        let feed: any[] = [];
+        
+        // Novos Usuários
+        if (profiles) {
+          const newUsers = profiles
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 10)
+            .map(p => ({
+              id: `user_${p.id}`,
+              type: 'new_user',
+              title: 'Novo Jogador Registrado',
+              desc: `${p.name} acabou de se cadastrar no Entrosa.`,
+              time: p.created_at,
+              icon: Users,
+              color: 'text-green-400 bg-green-400/20'
+            }));
+          feed = [...feed, ...newUsers];
+        }
+
+        // Saves Atualizados
+        if (saves) {
+          const recentSaves = saves
+            .sort((a, b) => new Date(b.last_synced_at).getTime() - new Date(a.last_synced_at).getTime())
+            .slice(0, 10)
+            .map((s, i) => ({
+              id: `save_${i}`,
+              type: 'save',
+              title: s.status === 'finished' ? 'Torneio Finalizado' : 'Progresso Salvo',
+              desc: `${(s.profiles as any)?.name || 'Jogador'} ${s.status === 'finished' ? 'terminou' : 'avançou'} no modo ${s.mode === 'brasileirao' ? 'Brasileirão' : 'Copa'}.`,
+              time: s.last_synced_at,
+              icon: Trophy,
+              color: s.status === 'finished' ? 'text-amarelo-gol bg-amarelo-gol/20' : 'text-blue-400 bg-blue-400/20'
+            }));
+          feed = [...feed, ...recentSaves];
+        }
+
+        // Duelos
+        if (duels) {
+          const recentDuels = duels.map((d, i) => ({
+            id: `duel_${i}`,
+            type: 'duel',
+            title: 'Novo Duelo Criado',
+            desc: `${d.creator_name} criou uma sala de x1 e está aguardando um adversário.`,
+            time: d.created_at,
+            icon: Target,
+            color: 'text-purple-400 bg-purple-400/20'
+          }));
+          feed = [...feed, ...recentDuels];
+        }
+
+        // Ordenar tudo cronologicamente
+        feed.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+        setActivities(feed.slice(0, 8)); // Mostrar só as 8 últimas ações gerais
+
       } catch (e) {
         console.error("Error loading admin stats", e);
       } finally {
@@ -110,14 +170,38 @@ export default function AdminDashboard() {
         
         {loading ? (
           <div className="animate-pulse space-y-4">
-            <div className="h-12 bg-blue-900/20 rounded-lg"></div>
-            <div className="h-12 bg-blue-900/20 rounded-lg"></div>
-            <div className="h-12 bg-blue-900/20 rounded-lg"></div>
+            <div className="h-16 bg-blue-900/20 rounded-lg"></div>
+            <div className="h-16 bg-blue-900/20 rounded-lg"></div>
+            <div className="h-16 bg-blue-900/20 rounded-lg"></div>
+          </div>
+        ) : activities.length > 0 ? (
+          <div className="space-y-4">
+            {activities.map((act) => {
+              const Icon = act.icon;
+              const date = new Date(act.time);
+              const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+              const dateStr = date.toLocaleDateString('pt-BR');
+              
+              return (
+                <div key={act.id} className="flex items-start gap-4 p-4 rounded-xl hover:bg-blue-900/10 transition-colors border border-transparent hover:border-blue-900/30 group">
+                  <div className={`p-3 rounded-full mt-1 ${act.color}`}>
+                    <Icon size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-white font-bold">{act.title}</h4>
+                    <p className="text-slate-400 text-sm mt-1">{act.desc}</p>
+                  </div>
+                  <div className="text-right text-xs text-slate-500 font-mono group-hover:text-blue-400 transition-colors">
+                    <div>{timeStr}</div>
+                    <div>{dateStr}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12 text-slate-500">
-            <p>O módulo de logs de auditoria detalhados será construído na Etapa 5.</p>
-            <p className="text-sm mt-2">Neste momento, as conexões base do Painel Administrativo estão 100% operacionais.</p>
+            <p>Nenhuma atividade recente encontrada.</p>
           </div>
         )}
       </div>
