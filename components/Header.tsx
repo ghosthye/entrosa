@@ -60,6 +60,16 @@ export function Header() {
             </button>
           </Link>
         )}
+        {(role === 'admin' || role === 'super_admin') && (
+          <Link href="/admin">
+            <button
+              className="p-2.5 bg-blue-900/50 hover:bg-blue-600/50 border border-blue-500/50 rounded-full transition-colors shadow-[0_0_10px_rgba(37,99,235,0.3)] flex items-center justify-center"
+              title="Painel Administrativo"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400 hover:text-white"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </button>
+          </Link>
+        )}
         <Link href="/perfil">
           <button
             className="p-2.5 bg-surface hover:bg-surface/80 border border-border-color rounded-full transition-colors shadow-sm flex items-center justify-center"

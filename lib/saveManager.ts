@@ -109,7 +109,7 @@ export const SaveManager = {
   syncToCloud: async (): Promise<boolean> => {
     try {
       const localData = SaveManager.loadLocally();
-      if (!localData || !localData.user_id) return false;
+      if (!localData) return false;
 
       // Se id está faltando, a UI deve ter setado um ID provisório ou vamos deixar o supabase gerar
       // Se tivermos um id, faz update.

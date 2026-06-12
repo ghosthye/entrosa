@@ -5,7 +5,15 @@ import { loadUserStats, updateUserStats, getTopPlayer, getTopConnection, getTopC
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<'user' | 'admin' | 'super_admin'>('user');
   const [loading, setLoading] = useState(true);
+
+  const fetchRole = async (userId: string) => {
+    try {
+      const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
+      if (data?.role) setRole(data.role);
+    } catch (e) {}
+  };
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -15,6 +23,7 @@ export function useAuth() {
         signInAnonymously();
       } else {
         syncDataIfNecessary(session.user);
+        if (!session.user.is_anonymous) fetchRole(session.user.id);
         setLoading(false);
       }
     });
@@ -24,6 +33,7 @@ export function useAuth() {
       setUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         await syncDataIfNecessary(session.user);
+        if (!session.user.is_anonymous) await fetchRole(session.user.id);
       }
       setLoading(false);
     });
@@ -86,5 +96,5 @@ export function useAuth() {
     }
   };
 
-  return { user, loading, signInWithGoogle };
+  return { user, role, loading, signInWithGoogle };
 }
