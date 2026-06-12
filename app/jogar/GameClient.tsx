@@ -887,6 +887,7 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
       {showCopaModal && (
         <CopaModal 
           playerTeam={chain} 
+          teamOverall={Math.round(chain.reduce((acc, c) => acc + (c.player?.overall || 80), 0) / Math.max(1, chain.length))}
           nodes2D={nodes2D}
           onClose={() => setShowCopaModal(false)} 
         />

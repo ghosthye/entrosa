@@ -13,15 +13,17 @@ import {
 import { Field, FormationNode } from '@/components/Field';
 import { supabase } from '@/lib/supabase';
 import html2canvas from 'html2canvas';
+import { SaveManager, EntrosaSave } from '@/lib/saveManager';
 
 interface LeagueModalProps {
   onClose: () => void;
   nodes2D: FormationNode[][];
   teamOverall: number;
   customTeamName?: string;
+  loadedSave?: Partial<EntrosaSave> | null;
 }
 
-export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName }: LeagueModalProps) {
+export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName, loadedSave }: LeagueModalProps) {
   const [teams, setTeams] = useState<LeagueTeam[]>([]);
   const [matches, setMatches] = useState<LeagueMatch[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
@@ -42,6 +44,16 @@ export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName }: L
   useEffect(() => {
     async function initLeague() {
       try {
+        if (loadedSave?.competition_state) {
+          const state = loadedSave.competition_state;
+          setTeams(state.teams || []);
+          setMatches(state.matches || []);
+          setCurrentRound(state.currentRound || 0);
+          setScorersMap(state.scorersMap || {});
+          setLoading(false);
+          return;
+        }
+
         const res = await fetch('/api/league/teams?count=19');
         const data = await res.json();
 
@@ -77,9 +89,43 @@ export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName }: L
       }
     }
     initLeague();
-  }, [nodes2D, teamOverall]);
+  }, [nodes2D, teamOverall, customTeamName, loadedSave]);
 
   const totalRounds = teams.length > 0 ? (teams.length - 1) * 2 : 38;
+
+  // Auto-Save Effect
+  useEffect(() => {
+    if (loading || currentRound === 0) return;
+    
+    const saveStatus = currentRound >= totalRounds ? 'finished' : 'in_progress';
+    const playerTeam = teams.find(t => t.id === 'player');
+    const playerStanding = getStandings(teams).findIndex(t => t.id === 'player') + 1;
+
+    SaveManager.saveLocally({
+      save_name: `Brasileirão - ${customTeamName || 'Seu Time'}`,
+      mode: 'brasileirao',
+      status: saveStatus,
+      custom_team_name: customTeamName || 'Seu Time',
+      team_overall: teamOverall,
+      nodes_2d: nodes2D,
+      final_position: saveStatus === 'finished' ? playerStanding : undefined,
+      is_champion: saveStatus === 'finished' ? playerStanding === 1 : undefined,
+      season_goals: saveStatus === 'finished' ? playerTeam?.stats.gf : undefined,
+      season_conceded: saveStatus === 'finished' ? playerTeam?.stats.ga : undefined,
+      competition_state: {
+        version: 1,
+        currentRound,
+        totalRounds,
+        teams,
+        matches,
+        scorersMap
+      }
+    });
+
+    if (currentRound % 5 === 0 || currentRound === totalRounds) {
+      SaveManager.syncToCloud();
+    }
+  }, [currentRound, loading, totalRounds, teams, matches, scorersMap, customTeamName, teamOverall, nodes2D]);
 
   const simulateRound = useCallback(() => {
     setCurrentRound(prevRound => {

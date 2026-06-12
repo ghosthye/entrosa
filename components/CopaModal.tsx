@@ -6,13 +6,16 @@ import { HistoricTeam, simulateMatch, MatchResult } from '@/lib/simulation';
 import { ChainNode } from '@/components/ChainBar';
 import { FormationNode } from '@/components/Field';
 import { supabase } from '@/lib/supabase';
+import { SaveManager, EntrosaSave } from '@/lib/saveManager';
 
 interface CopaModalProps {
   onClose: () => void;
-  playerTeam: ChainNode[];
+  playerTeam: any[];
+  teamOverall: number;
   nodes2D: FormationNode[][];
   league?: 'worldcup' | 'brasileirao';
   customTeamName?: string;
+  loadedSave?: Partial<EntrosaSave> | null;
 }
 
 interface GroupTeam {
@@ -53,7 +56,7 @@ function getRandomScorer(names: string[]): string {
   return names[index] || 'Jogador';
 }
 
-export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup', customTeamName }: CopaModalProps) {
+export function CopaModal({ onClose, playerTeam, teamOverall, nodes2D, league = 'worldcup', customTeamName, loadedSave }: CopaModalProps) {
   const [opponents, setOpponents] = useState<HistoricTeam[]>([]);
   const [groupStandings, setGroupStandings] = useState<GroupTeam[]>([]);
   
@@ -93,7 +96,6 @@ export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup', c
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
       let profileData = profile;
       if (!profileData) {
-        // Fallback for brand new users who haven't played the daily puzzle yet
         profileData = {
           id: userId,
           name: session.user.user_metadata?.full_name || 'Anônimo',
@@ -122,20 +124,56 @@ export function CopaModal({ onClose, playerTeam, nodes2D, league = 'worldcup', c
     }
   };
 
-  const teamOverall = Math.floor(
-    playerTeam.reduce((acc, node) => acc + (node.player.overall || 70), 0) / playerTeam.length
-  );
-  
-  const playerNamesArray = [...playerTeam].sort((a: any, b: any) => {
-    const idA = a.slotId ? parseInt(a.slotId.replace('slot-', '')) : 0;
-    const idB = b.slotId ? parseInt(b.slotId.replace('slot-', '')) : 0;
-    return idB - idA; // higher slotId (ata) first
-  }).map(n => n.player.name ? (n.player.name.split(' ').pop() || 'Jogador') : 'Jogador') as string[];
-
-  // Extrair posições do campo (nodes2D) na mesma ordem que playerNamesArray
+  // Extrair nomes de jogadores do nodes2D
+  const playerNamesArray = nodes2D.flat().filter(n => n.playerName).map(n => n.playerName) as string[];
   const playerPositionsArray = nodes2D.flat().filter(n => n.playerName).map(n => n.position) as string[];
 
+  // Auto-Save Effect
   useEffect(() => {
+    if (opponents.length === 0) return;
+    
+    const isFinished = tournamentPhase === 'Campeão' || tournamentPhase === 'Eliminado';
+    SaveManager.saveLocally({
+      save_name: `Copa - ${customTeamName || 'Seu Time'}`,
+      mode: 'worldcup',
+      status: isFinished ? 'finished' : 'in_progress',
+      custom_team_name: customTeamName || 'Seu Time',
+      team_overall: teamOverall,
+      nodes_2d: nodes2D,
+      is_champion: tournamentPhase === 'Campeão',
+      competition_state: {
+        version: 1,
+        currentRound,
+        totalRounds: 7, // Copa tem max 7 rodadas (3 grupo + 4 mata)
+        teams: opponents,
+        matches: pastMatches,
+        scorersMap: {},
+        groupStandings,
+        tournamentPhase,
+        eliminatedPhase
+      }
+    });
+
+    if (isFinished || currentRound % 3 === 0) {
+      SaveManager.syncToCloud();
+    }
+  }, [currentRound, tournamentPhase, pastMatches, groupStandings, eliminatedPhase, opponents, customTeamName, teamOverall, nodes2D]);
+
+  useEffect(() => {
+    if (loadedSave?.competition_state) {
+      const state = loadedSave.competition_state;
+      setOpponents(state.teams || []);
+      setGroupStandings(state.groupStandings || []);
+      setPastMatches(state.matches || []);
+      setCurrentRound(state.currentRound || 1);
+      setTournamentPhase(state.tournamentPhase || 'Grupos');
+      setEliminatedPhase(state.eliminatedPhase || null);
+      if (state.tournamentPhase === 'Campeão' || state.tournamentPhase === 'Eliminado') {
+        setActiveTab('Card');
+      }
+      return;
+    }
+
     const url = league ? `/api/opponents?league=${league}` : '/api/opponents';
     fetch(url)
       .then(res => res.json())

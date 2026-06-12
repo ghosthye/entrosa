@@ -1,11 +1,22 @@
-import React from 'react';
-import { Dice3, Trophy, Shield, RefreshCcw, Swords } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Dice3, Trophy, Shield, RefreshCcw, Swords, PlayCircle } from 'lucide-react';
+import { SaveManager, EntrosaSave } from '@/lib/saveManager';
 
 type DraftLandingProps = {
   onStart: () => void;
+  onLoadSave?: (save: Partial<EntrosaSave>) => void;
 };
 
-export function DraftLanding({ onStart }: DraftLandingProps) {
+export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
+  const [localSave, setLocalSave] = useState<Partial<EntrosaSave> | null>(null);
+
+  useEffect(() => {
+    const save = SaveManager.loadLocally();
+    if (save && save.status === 'in_progress') {
+      setLocalSave(save);
+    }
+  }, []);
+
   return (
     <div className="w-full flex flex-col items-center pb-20 relative z-10 px-4 sm:px-8">
       {/* Hero Section */}
@@ -19,8 +30,13 @@ export function DraftLanding({ onStart }: DraftLandingProps) {
             Role o dado para descobrir qual Seleção Histórica você vai controlar. Monte um esquadrão imbatível e prove seu valor na Copa.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+            {localSave && onLoadSave && (
+              <button onClick={() => onLoadSave(localSave)} className="bg-amarelo-gol text-black font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:scale-105 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(255,214,0,0.4)] flex items-center justify-center gap-2">
+                <PlayCircle size={24} /> Continuar {localSave.mode === 'brasileirao' ? 'Brasileirão' : 'Copa'}
+              </button>
+            )}
             <button onClick={onStart} className="bg-blue-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-blue-500 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
-              Começar o Draft
+              Novo Draft
             </button>
           </div>
         </div>
