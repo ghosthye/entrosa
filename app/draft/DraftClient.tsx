@@ -10,6 +10,7 @@ import { DraftLanding } from '@/components/DraftLanding';
 import { TeamSpinner } from '@/components/TeamSpinner';
 import { motion } from 'framer-motion';
 import { SaveManager, EntrosaSave } from '@/lib/saveManager';
+import { useAuth } from '@/lib/useAuth';
 
 type Player = {
   id: string;
@@ -325,6 +326,7 @@ export function DraftClient() {
   const [setup, setSetup] = useState<SetupConfig | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [activeSave, setActiveSave] = useState<Partial<EntrosaSave> | null>(null);
+  const { role } = useAuth();
   
   const [slots, setSlots] = useState<Slot[]>([]);
   const [currentRoll, setCurrentRoll] = useState<RollResult | null>(null);
@@ -407,6 +409,26 @@ export function DraftClient() {
       return s;
     }));
     
+    setMustPick(false);
+    setCurrentRoll(null);
+    setSelectedPlayer(null);
+  };
+
+  const handleDebugFill = () => {
+    setSlots(prev => prev.map((s, i) => {
+      if (s.player) return s;
+      return {
+        ...s,
+        player: {
+          id: `DEBUG-${i}`,
+          name: `Debug Player ${i}`,
+          face_url: null,
+          position: s.expectedPositions[0],
+          shirtNumber: i + 1,
+          overall: Math.floor(Math.random() * 20) + 75
+        }
+      };
+    }));
     setMustPick(false);
     setCurrentRoll(null);
     setSelectedPlayer(null);
@@ -503,9 +525,19 @@ export function DraftClient() {
                    </div>
                    <p className="text-secondary text-[10px] font-mono uppercase tracking-widest mt-1">Sorteio Histórico</p>
                  </div>
-                 <div className="text-right bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-                   <div className="text-[9px] font-mono text-secondary uppercase">Formação</div>
-                   <div className="text-amarelo-gol font-bold text-sm">{setup.formation}</div>
+                 <div className="flex gap-2">
+                   {(role === 'admin' || role === 'super_admin') && (
+                     <button
+                       onClick={handleDebugFill}
+                       className="text-[9px] bg-red-600/20 text-red-400 border border-red-600/50 px-2 py-1 rounded-lg uppercase font-bold hover:bg-red-600 hover:text-white transition-colors"
+                     >
+                       Debug Fill
+                     </button>
+                   )}
+                   <div className="text-right bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
+                     <div className="text-[9px] font-mono text-secondary uppercase">Formação</div>
+                     <div className="text-amarelo-gol font-bold text-sm">{setup.formation}</div>
+                   </div>
                  </div>
                </div>
 
