@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin';
 import crypto from 'crypto';
 
 export async function POST(request: Request) {

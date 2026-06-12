@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabaseAdmin';
 import { simulateMatch } from '@/lib/simulation';
 
 export async function PUT(request: Request) {
