@@ -60,7 +60,7 @@ export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
                 <PlayCircle size={24} /> Continuar {localSave.mode === 'brasileirao' ? 'Brasileirão' : 'Copa'}
               </button>
             )}
-            <button onClick={onStart} className="bg-blue-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-blue-500 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+            <button onClick={() => { SaveManager.clearLocalSave(); onStart(); }} className="bg-blue-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-blue-500 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
               Novo Draft
             </button>
           </div>

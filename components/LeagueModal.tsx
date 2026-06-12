@@ -54,7 +54,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName, loa
           return;
         }
 
-        const res = await fetch('/api/league/teams?count=19');
+        const res = await fetch(`/api/league/teams?count=19&t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
 
         const players = nodes2D.flat().filter(n => n.playerName);
