@@ -122,7 +122,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName, loa
       }
     });
 
-    SaveManager.syncToCloud();
+    SaveManager.syncToCloud('brasileirao');
   }, [currentRound, loading, totalRounds, teams, matches, scorersMap, customTeamName, teamOverall, nodes2D]);
 
   const simulateRound = useCallback(() => {

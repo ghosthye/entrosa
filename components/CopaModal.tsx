@@ -154,7 +154,7 @@ export function CopaModal({ onClose, playerTeam, teamOverall, nodes2D, league = 
       }
     });
 
-    SaveManager.syncToCloud();
+    SaveManager.syncToCloud('worldcup');
   }, [currentRound, tournamentPhase, pastMatches, groupStandings, eliminatedPhase, opponents, customTeamName, teamOverall, nodes2D]);
 
   useEffect(() => {

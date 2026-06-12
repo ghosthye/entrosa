@@ -14,41 +14,40 @@ export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
 
   useEffect(() => {
     const loadFromCloudOrLocal = async () => {
-      // Puxa todos os saves locais
-      const saves = SaveManager.loadAllLocally().filter(s => s.status === 'in_progress');
-      setLocalSaves(saves);
+      // Puxa todos os saves locais (SEM FILTRAR AINDA)
+      const allLocalSaves = SaveManager.loadAllLocally();
 
       // Se o user tá logado, checa se tem algo mais novo na nuvem
       if (user) {
         const cloudSaves = await SaveManager.fetchCloudSaves(user.id);
-        const inProgressCloudSaves = cloudSaves.filter(s => s.status === 'in_progress');
         
-        let updatedLocal = [...saves];
         let hasChanges = false;
-
-        inProgressCloudSaves.forEach(cloudSave => {
-          const matchingLocalIndex = updatedLocal.findIndex(s => s.mode === cloudSave.mode);
+        
+        // Vamos atualizar nosso array local bruto baseado no que a nuvem diz
+        cloudSaves.forEach(cloudSave => {
+          const matchingLocalIndex = allLocalSaves.findIndex(s => s.mode === cloudSave.mode);
           const cloudTime = new Date(cloudSave.last_synced_at).getTime();
           
           if (matchingLocalIndex >= 0) {
-            const localTime = updatedLocal[matchingLocalIndex].last_synced_at ? new Date(updatedLocal[matchingLocalIndex].last_synced_at as string).getTime() : 0;
+            const localTime = allLocalSaves[matchingLocalIndex].last_synced_at ? new Date(allLocalSaves[matchingLocalIndex].last_synced_at as string).getTime() : 0;
             if (cloudTime > localTime) {
+              // A nuvem tem algo mais recente, então sobrescrevemos o local
               SaveManager.saveLocally(cloudSave);
-              updatedLocal[matchingLocalIndex] = cloudSave;
+              allLocalSaves[matchingLocalIndex] = cloudSave;
               hasChanges = true;
             }
           } else {
             // Nuvem tem um save que nem existe no local
             SaveManager.saveLocally(cloudSave);
-            updatedLocal.push(cloudSave);
+            allLocalSaves.push(cloudSave);
             hasChanges = true;
           }
         });
-
-        if (hasChanges) {
-          setLocalSaves([...updatedLocal]);
-        }
       }
+      
+      // Depois de reconciliar a nuvem com o local, filtramos os in_progress para mostrar nos botões
+      const finalActiveSaves = allLocalSaves.filter(s => s.status === 'in_progress');
+      setLocalSaves(finalActiveSaves);
     };
     
     loadFromCloudOrLocal();
