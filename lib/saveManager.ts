@@ -32,7 +32,7 @@ export interface EntrosaSave {
   created_at: string;
 }
 
-const LOCAL_STORAGE_KEY = 'entrosa_active_save';
+const getLocalKey = (mode: string) => `entrosa_active_save_${mode}`;
 
 /**
  * Função de migração segura para o futuro.
@@ -44,23 +44,16 @@ export function migrateSaveData(rawData: any): BaseSaveState {
     data.version = 1;
   }
   
-  // Future versions migrations will live here:
-  // if (data.version === 1) {
-  //   data = convertV1toV2(data);
-  // }
-  
   return data;
 }
 
 export const SaveManager = {
   
-  /**
-   * Salva o estado da liga inteiramente em memória local.
-   * Não bate no Supabase, garantindo 0 delay para o simulador.
-   */
   saveLocally: (saveData: Partial<EntrosaSave>) => {
     try {
-      const existingStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const mode = saveData.mode || 'brasileirao';
+      const key = getLocalKey(mode);
+      const existingStr = localStorage.getItem(key);
       let existing = {};
       if (existingStr) existing = JSON.parse(existingStr);
 
@@ -70,18 +63,45 @@ export const SaveManager = {
         last_synced_at: new Date().toISOString()
       };
       
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
       console.warn('Erro ao salvar no LocalStorage:', err);
     }
   },
 
-  /**
-   * Carrega o save da memória local
-   */
-  loadLocally: (): Partial<EntrosaSave> | null => {
+  loadAllLocally: (): Partial<EntrosaSave>[] => {
+    // Migration from old key to mode-specific key
+    const oldStr = localStorage.getItem('entrosa_active_save');
+    if (oldStr) {
+      try {
+        const oldData = JSON.parse(oldStr);
+        const mode = oldData.mode || 'brasileirao';
+        localStorage.setItem(getLocalKey(mode), oldStr);
+        localStorage.removeItem('entrosa_active_save');
+      } catch(e) {}
+    }
+
+    const modes = ['brasileirao', 'worldcup'];
+    const saves: Partial<EntrosaSave>[] = [];
+    for (const mode of modes) {
+      try {
+         const str = localStorage.getItem(getLocalKey(mode));
+         if (str) {
+           const data = JSON.parse(str);
+           if (data.competition_state) {
+             data.competition_state = migrateSaveData(data.competition_state);
+           }
+           saves.push(data);
+         }
+      } catch(e) {}
+    }
+    return saves;
+  },
+
+  loadLocally: (mode?: string): Partial<EntrosaSave> | null => {
+    if (!mode) return SaveManager.loadAllLocally()[0] || null;
     try {
-      const dataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const dataStr = localStorage.getItem(getLocalKey(mode));
       if (!dataStr) return null;
       
       const data = JSON.parse(dataStr);
@@ -94,31 +114,28 @@ export const SaveManager = {
     }
   },
 
-  /**
-   * Limpa o cache local (ideal após upload para a nuvem em saves finalizados)
-   */
-  clearLocalSave: () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  clearLocalSave: (mode?: string) => {
+    if (mode) {
+      localStorage.removeItem(getLocalKey(mode));
+    } else {
+      localStorage.removeItem(getLocalKey('brasileirao'));
+      localStorage.removeItem(getLocalKey('worldcup'));
+      localStorage.removeItem('entrosa_active_save'); // limpar resquícios
+    }
   },
 
-  /**
-   * Event-Driven Sync: Tenta enviar o LocalStorage atual pro Supabase silenciosamente.
-   * Se o id não estiver no banco, o upsert cria um novo UUID (se deixarmos o banco cuidar)
-   * mas para prevenir duplicidade de id nulo, assumimos que id só é nulo no primeiríssimo insert.
-   */
-  syncToCloud: async (): Promise<boolean> => {
+  syncToCloud: async (mode?: string): Promise<boolean> => {
     try {
-      const localData = SaveManager.loadLocally();
+      const localSaves = SaveManager.loadAllLocally();
+      const localData = mode ? localSaves.find(s => s.mode === mode) : localSaves[0];
       if (!localData) return false;
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return false;
 
-      // Se id está faltando, a UI deve ter setado um ID provisório ou vamos deixar o supabase gerar
-      // Se tivermos um id, faz update.
       const payload: any = { ...localData };
       payload.user_id = session.user.id;
-      payload.last_synced_at = new Date().toISOString(); // carimba hora do sync
+      payload.last_synced_at = new Date().toISOString();
       
       const { data, error } = await supabase
         .from('saves')
@@ -131,9 +148,8 @@ export const SaveManager = {
         return false;
       }
 
-      // Se inseriu um novo save que não tinha ID, salva o UUID gerado no local storage
       if (!localData.id && data?.id) {
-        SaveManager.saveLocally({ id: data.id });
+        SaveManager.saveLocally({ id: data.id, mode: localData.mode });
       }
 
       return true;

@@ -9,32 +9,44 @@ type DraftLandingProps = {
 };
 
 export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
-  const [localSave, setLocalSave] = useState<Partial<EntrosaSave> | null>(null);
+  const [localSaves, setLocalSaves] = useState<Partial<EntrosaSave>[]>([]);
   const { user } = useAuth();
 
   useEffect(() => {
     const loadFromCloudOrLocal = async () => {
-      // Tenta puxar o local primeiro (rápido)
-      const save = SaveManager.loadLocally();
-      if (save && save.status === 'in_progress') {
-        setLocalSave(save);
-      }
+      // Puxa todos os saves locais
+      const saves = SaveManager.loadAllLocally().filter(s => s.status === 'in_progress');
+      setLocalSaves(saves);
 
       // Se o user tá logado, checa se tem algo mais novo na nuvem
       if (user) {
         const cloudSaves = await SaveManager.fetchCloudSaves(user.id);
-        const latestCloudSave = cloudSaves.find(s => s.status === 'in_progress');
+        const inProgressCloudSaves = cloudSaves.filter(s => s.status === 'in_progress');
         
-        if (latestCloudSave) {
-          // Compara data para ver se o da nuvem é mais novo que o local
-          const cloudTime = new Date(latestCloudSave.last_synced_at).getTime();
-          const localTime = save?.last_synced_at ? new Date(save.last_synced_at).getTime() : 0;
+        let updatedLocal = [...saves];
+        let hasChanges = false;
+
+        inProgressCloudSaves.forEach(cloudSave => {
+          const matchingLocalIndex = updatedLocal.findIndex(s => s.mode === cloudSave.mode);
+          const cloudTime = new Date(cloudSave.last_synced_at).getTime();
           
-          if (cloudTime > localTime) {
-            // Nuvem tem save mais recente! Atualiza o LocalStorage e a UI
-            SaveManager.saveLocally(latestCloudSave);
-            setLocalSave(latestCloudSave);
+          if (matchingLocalIndex >= 0) {
+            const localTime = updatedLocal[matchingLocalIndex].last_synced_at ? new Date(updatedLocal[matchingLocalIndex].last_synced_at as string).getTime() : 0;
+            if (cloudTime > localTime) {
+              SaveManager.saveLocally(cloudSave);
+              updatedLocal[matchingLocalIndex] = cloudSave;
+              hasChanges = true;
+            }
+          } else {
+            // Nuvem tem um save que nem existe no local
+            SaveManager.saveLocally(cloudSave);
+            updatedLocal.push(cloudSave);
+            hasChanges = true;
           }
+        });
+
+        if (hasChanges) {
+          setLocalSaves([...updatedLocal]);
         }
       }
     };
@@ -54,11 +66,13 @@ export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
           <p className="font-sans text-lg sm:text-xl md:text-2xl text-secondary font-medium max-w-lg mx-auto md:mx-0 mb-10 leading-snug">
             Role o dado para descobrir qual Seleção Histórica você vai controlar. Monte um esquadrão imbatível e prove seu valor na Copa.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-            {localSave && onLoadSave && (
-              <button onClick={() => onLoadSave(localSave)} className="bg-amarelo-gol text-black font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:scale-105 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(255,214,0,0.4)] flex items-center justify-center gap-2">
-                <PlayCircle size={24} /> Continuar {localSave.mode === 'brasileirao' ? 'Brasileirão' : 'Copa'}
-              </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start flex-wrap">
+            {localSaves.length > 0 && onLoadSave && (
+              localSaves.map((save, idx) => (
+                <button key={idx} onClick={() => onLoadSave(save)} className="bg-amarelo-gol text-black font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:scale-105 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(255,214,0,0.4)] flex items-center justify-center gap-2">
+                  <PlayCircle size={24} /> Continuar {save.mode === 'brasileirao' ? 'Brasileirão' : 'Copa'}
+                </button>
+              ))
             )}
             <button onClick={() => { SaveManager.clearLocalSave(); onStart(); }} className="bg-blue-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-blue-500 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
               Novo Draft
