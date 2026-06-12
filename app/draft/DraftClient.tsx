@@ -349,6 +349,11 @@ export function DraftClient() {
       league: save.mode || 'brasileirao',
       customTeamName: save.custom_team_name
     });
+    
+    // Inicia os slots vazios para não quebrar a tela de draft por trás da modal
+    const formationData = FORMATIONS['4-3-3'];
+    setSlots(formationData.slots.map(s => ({ ...s, player: null })));
+
     // Fill dummy slots just to prevent crashing, the Modal will read nodes_2d directly
     const players = save.nodes_2d?.flat().filter(n => n.playerName) || [];
     if (save.mode === 'brasileirao') {
@@ -650,11 +655,11 @@ export function DraftClient() {
           onClose={() => setShowCopaModal(false)}
           league={setup.league}
           playerTeam={slots.map(s => ({
-            playerName: s.player!.name,
-            position: s.player!.position,
-            faceUrl: s.player!.face_url
+            playerName: s.player?.name || '',
+            position: s.player?.position || '',
+            faceUrl: s.player?.face_url || ''
           }))}
-          teamOverall={Math.round(slots.reduce((acc, s) => acc + (s.player?.overall || 0), 0) / 11)}
+          teamOverall={activeSave?.team_overall || Math.round(slots.reduce((acc, s) => acc + (s.player?.overall || 0), 0) / 11)}
           nodes2D={nodes}
           customTeamName={setup.customTeamName}
           loadedSave={activeSave}
@@ -666,7 +671,7 @@ export function DraftClient() {
         <LeagueModal
           onClose={() => setShowLeagueModal(false)}
           nodes2D={nodes}
-          teamOverall={Math.round(slots.reduce((acc, s) => acc + (s.player?.overall || 0), 0) / 11)}
+          teamOverall={activeSave?.team_overall || Math.round(slots.reduce((acc, s) => acc + (s.player?.overall || 0), 0) / 11)}
           customTeamName={setup.customTeamName}
           loadedSave={activeSave}
         />

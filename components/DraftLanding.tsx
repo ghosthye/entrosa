@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Dice3, Trophy, Shield, RefreshCcw, Swords, PlayCircle } from 'lucide-react';
 import { SaveManager, EntrosaSave } from '@/lib/saveManager';
+import { useAuth } from '@/lib/useAuth';
 
 type DraftLandingProps = {
   onStart: () => void;
@@ -9,13 +10,37 @@ type DraftLandingProps = {
 
 export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
   const [localSave, setLocalSave] = useState<Partial<EntrosaSave> | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    const save = SaveManager.loadLocally();
-    if (save && save.status === 'in_progress') {
-      setLocalSave(save);
-    }
-  }, []);
+    const loadFromCloudOrLocal = async () => {
+      // Tenta puxar o local primeiro (rápido)
+      const save = SaveManager.loadLocally();
+      if (save && save.status === 'in_progress') {
+        setLocalSave(save);
+      }
+
+      // Se o user tá logado, checa se tem algo mais novo na nuvem
+      if (user) {
+        const cloudSaves = await SaveManager.fetchCloudSaves(user.id);
+        const latestCloudSave = cloudSaves.find(s => s.status === 'in_progress');
+        
+        if (latestCloudSave) {
+          // Compara data para ver se o da nuvem é mais novo que o local
+          const cloudTime = new Date(latestCloudSave.last_synced_at).getTime();
+          const localTime = save?.last_synced_at ? new Date(save.last_synced_at).getTime() : 0;
+          
+          if (cloudTime > localTime) {
+            // Nuvem tem save mais recente! Atualiza o LocalStorage e a UI
+            SaveManager.saveLocally(latestCloudSave);
+            setLocalSave(latestCloudSave);
+          }
+        }
+      }
+    };
+    
+    loadFromCloudOrLocal();
+  }, [user]);
 
   return (
     <div className="w-full flex flex-col items-center pb-20 relative z-10 px-4 sm:px-8">
