@@ -12,6 +12,12 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    totalDrafts: 0,
+    totalGoals: 0,
+    activeSaves: 0
+  });
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
