@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { SearchInput, PlayerSearchResult } from '@/components/SearchInput';
 import { supabase } from '@/lib/supabase';
-import { Puzzle, Plus, Trash2, Calendar, Layout, User as UserIcon } from 'lucide-react';
+import { Puzzle, Plus, Trash2, Calendar, Layout, User as UserIcon, X } from 'lucide-react';
 
 interface DailyPuzzle {
   id: number;
@@ -20,6 +21,7 @@ export default function AdminPuzzlePage() {
   const [date, setDate] = useState('');
   const [formation, setFormation] = useState('4-3-3');
   const [startingPlayerId, setStartingPlayerId] = useState('');
+  const [selectedPlayerName, setSelectedPlayerName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchPuzzles = async () => {
@@ -54,6 +56,10 @@ export default function AdminPuzzlePage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startingPlayerId) {
+      alert('Selecione um jogador primeiro!');
+      return;
+    }
     setSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -76,6 +82,7 @@ export default function AdminPuzzlePage() {
 
       alert('Desafio agendado com sucesso!');
       setStartingPlayerId('');
+      setSelectedPlayerName('');
       fetchPuzzles();
     } catch (e) {
       alert('Erro inesperado ao criar.');
@@ -154,17 +161,32 @@ export default function AdminPuzzlePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2">
-                <UserIcon size={16} /> ID do Jogador (Craque)
+                <UserIcon size={16} /> Jogador Alvo (Craque)
               </label>
-              <input 
-                type="text" 
-                required
-                placeholder="Ex: P-38906 (Pelé)"
-                value={startingPlayerId}
-                onChange={e => setStartingPlayerId(e.target.value)}
-                className="w-full bg-[#0a142c] border border-blue-900/50 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-              />
-              <p className="text-xs text-slate-500 mt-2">Dica: Pegue o ID de um jogador na sua base SQLite ou JSON.</p>
+              {startingPlayerId ? (
+                <div className="w-full bg-[#0a142c] border border-blue-500/50 rounded-lg p-3 flex justify-between items-center">
+                  <div className="flex flex-col">
+                    <span className="text-white font-bold">{selectedPlayerName}</span>
+                    <span className="text-xs text-slate-400 font-mono">{startingPlayerId}</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => { setStartingPlayerId(''); setSelectedPlayerName(''); }}
+                    className="text-slate-400 hover:text-red-400 p-1"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2" style={{ color: 'black' }}>
+                  <SearchInput 
+                    onSelect={(p: PlayerSearchResult) => {
+                      setStartingPlayerId(p.id);
+                      setSelectedPlayerName(p.name);
+                    }} 
+                  />
+                </div>
+              )}
             </div>
             
             <button 
