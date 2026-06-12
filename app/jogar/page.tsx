@@ -1,13 +1,32 @@
-import { getDailyPuzzle } from '@/lib/daily';
 import { getDb } from '@/lib/db';
 import { getPlayerOverall } from '@/lib/overall';
 import GameClient from './GameClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
-export default function JogarPage() {
+export default async function JogarPage() {
   const today = new Date().toISOString().split('T')[0];
-  const puzzle = getDailyPuzzle(today);
+  
+  const launchDate = new Date('2026-06-08');
+  const currentDate = new Date(today);
+  const diffDays = Math.max(1, Math.ceil((currentDate.getTime() - launchDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+  const { data: todayPuzzle } = await supabaseAdmin
+    .from('daily_puzzles')
+    .select('formation, starting_player_id')
+    .eq('date', today)
+    .single();
+
+  const puzzle = todayPuzzle ? {
+    formation: todayPuzzle.formation,
+    startingPlayerId: todayPuzzle.starting_player_id,
+    puzzleNumber: diffDays
+  } : {
+    formation: '4-3-3',
+    startingPlayerId: 'P-38906', // Pelé fallback
+    puzzleNumber: diffDays
+  };
   
   const db = getDb();
   const stmt = db.prepare(`
@@ -33,8 +52,15 @@ export default function JogarPage() {
   };
 
   const tomorrowStr = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const nextPuzzle = getDailyPuzzle(tomorrowStr);
-  const nextPlayerRecord = stmt.get(nextPuzzle.startingPlayerId) as any;
+  
+  const { data: nextPuzzleData } = await supabaseAdmin
+    .from('daily_puzzles')
+    .select('starting_player_id')
+    .eq('date', tomorrowStr)
+    .single();
+
+  const nextPuzzleId = nextPuzzleData ? nextPuzzleData.starting_player_id : 'P-38906';
+  const nextPlayerRecord = stmt.get(nextPuzzleId) as any;
   const nextCountry = nextPlayerRecord ? nextPlayerRecord.team_name : 'desconhecido';
   const nextTeaser = `Próximo puzzle em breve — começa com um craque de: ${nextCountry} ⏳`;
 
