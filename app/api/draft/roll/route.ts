@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const difficulty = searchParams.get('difficulty') || 'easy';
     const db = getDb(league);
 
-    const sampleSize = difficulty === 'easy' ? 8 : 1;
+    const sampleSize = difficulty === 'easy' ? 3 : 1;
 
     let randomSquadsStmt;
     if (league === 'brasileirao') {

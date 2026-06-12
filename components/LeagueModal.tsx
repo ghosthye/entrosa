@@ -490,12 +490,12 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
               <div className="flex text-[10px] font-mono text-white/30 px-3 uppercase pb-2 border-b border-white/5">
                 <div className="w-8">Pos</div>
                 <div className="flex-1">Clube</div>
-                <div className="w-10 text-center text-white">P</div>
-                <div className="w-8 text-center">J</div>
-                <div className="w-8 text-center">V</div>
-                <div className="w-8 text-center">E</div>
-                <div className="w-8 text-center">D</div>
-                <div className="w-10 text-center">SG</div>
+                <div className="w-8 sm:w-10 text-center text-white">P</div>
+                <div className="hidden sm:block w-8 text-center">J</div>
+                <div className="hidden sm:block w-8 text-center">V</div>
+                <div className="hidden sm:block w-8 text-center">E</div>
+                <div className="hidden sm:block w-8 text-center">D</div>
+                <div className="w-8 sm:w-10 text-center">SG</div>
               </div>
 
               <div className="flex flex-col gap-1 mt-1">
@@ -512,12 +512,12 @@ export function LeagueModal({ onClose, nodes2D, teamOverall }: LeagueModalProps)
                       <span className="text-[9px] text-white/20 font-mono">'{String(team.year).slice(-2)}</span>
                       {team.id === 'player' && <span className="text-[8px] bg-amarelo-gol text-black px-1 rounded font-bold uppercase">Você</span>}
                     </div>
-                    <div className="w-10 text-center font-display text-base text-amarelo-gol">{team.stats.pts}</div>
-                    <div className="w-8 text-center font-mono text-white/40">{currentRound}</div>
-                    <div className="w-8 text-center font-mono text-white/40">{team.stats.v}</div>
-                    <div className="w-8 text-center font-mono text-white/40">{team.stats.e}</div>
-                    <div className="w-8 text-center font-mono text-white/40">{team.stats.d}</div>
-                    <div className="w-10 text-center font-mono font-bold text-white/80">{team.stats.sg > 0 ? `+${team.stats.sg}` : team.stats.sg}</div>
+                    <div className="w-8 sm:w-10 text-center font-display text-sm sm:text-base text-amarelo-gol">{team.stats.pts}</div>
+                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{currentRound}</div>
+                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{team.stats.v}</div>
+                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{team.stats.e}</div>
+                    <div className="hidden sm:block w-8 text-center font-mono text-white/40">{team.stats.d}</div>
+                    <div className="w-8 sm:w-10 text-center font-mono font-bold text-white/80 text-[10px] sm:text-xs">{team.stats.sg > 0 ? `+${team.stats.sg}` : team.stats.sg}</div>
                   </motion.div>
                 ))}
               </div>
