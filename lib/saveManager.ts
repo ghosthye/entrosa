@@ -111,9 +111,13 @@ export const SaveManager = {
       const localData = SaveManager.loadLocally();
       if (!localData) return false;
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return false;
+
       // Se id está faltando, a UI deve ter setado um ID provisório ou vamos deixar o supabase gerar
       // Se tivermos um id, faz update.
       const payload: any = { ...localData };
+      payload.user_id = session.user.id;
       payload.last_synced_at = new Date().toISOString(); // carimba hora do sync
       
       const { data, error } = await supabase

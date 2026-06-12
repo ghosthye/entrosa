@@ -122,9 +122,7 @@ export function LeagueModal({ onClose, nodes2D, teamOverall, customTeamName, loa
       }
     });
 
-    if (currentRound % 5 === 0 || currentRound === totalRounds) {
-      SaveManager.syncToCloud();
-    }
+    SaveManager.syncToCloud();
   }, [currentRound, loading, totalRounds, teams, matches, scorersMap, customTeamName, teamOverall, nodes2D]);
 
   const simulateRound = useCallback(() => {

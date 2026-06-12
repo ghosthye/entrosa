@@ -154,9 +154,7 @@ export function CopaModal({ onClose, playerTeam, teamOverall, nodes2D, league = 
       }
     });
 
-    if (isFinished || currentRound % 3 === 0) {
-      SaveManager.syncToCloud();
-    }
+    SaveManager.syncToCloud();
   }, [currentRound, tournamentPhase, pastMatches, groupStandings, eliminatedPhase, opponents, customTeamName, teamOverall, nodes2D]);
 
   useEffect(() => {
