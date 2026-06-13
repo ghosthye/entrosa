@@ -30,3 +30,10 @@ Painéis administrativos (`/admin`) vivem isolados. Usam HOCs (Higher Order Comp
 
 ## 5. Simulações Completamente Matemáticas
 A liga e a copa não dependem do servidor para "calcular a próxima partida". As regras esportivas, geradores e matrizes (funções puras do arquivo `leagueSimulation.ts`) rodam **inteiramente no navegador** do cliente. A nuvem não consome CPU processando saldo de gols, apenas armazena a foto do resultado. Isso é essencial para que 10.000 usuários possam jogar a Liga ao mesmo tempo no Vercel sem custo.
+
+## 6. Sincronização Multiplayer em Tempo Real
+O Supabase Realtime (WebSockets via Postgres Changes) é empregado para criar os canais de "Salas de Draft" (ex: `draft_rooms`).
+A sincronização é inteiramente Event-Driven (orientada a eventos).
+- **Lobby:** Listeners aguardam o status `is_ready` dos jogadores mudarem.
+- **Drafting:** Um index `current_turn_index` dita quem é a vez. Quando um jogador escolhe uma carta, o cliente dele invoca um UPDATE no Supabase que emite um broadcat para os demais clientes travando as escolhas alheias.
+- **Arena:** O Host assume a "Calculadora de Simulação Matemática" listada na etapa 5. Ele roda a simulação da partida localmente no navegador e empurra o Payload pro Supabase, que então replica o Payload finalizado para as telas dos convidados simultaneamente através do canal Realtime. O servidor nunca joga os dados, ele só serve de roteador rápido entre o Host e os Guest Clients.

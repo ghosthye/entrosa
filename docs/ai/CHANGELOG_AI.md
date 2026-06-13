@@ -1,6 +1,21 @@
 # CHANGELOG_AI
 
-## 2026-06-12
+## 2026-06-12 (Parte 2 - Multiplayer)
+
+### Implementado
+- **Draft Multiplayer em Tempo Real:** Criada a arquitetura completa de Salas (`draft_rooms` e `draft_room_players`) utilizando Supabase Realtime para WebSockets. Permite que múltiplos jogadores (Logados e Anônimos) entrem via código curto (Short Code) e realizem picks alternados nas roletas.
+- **Auto-Simulação de Liga com Host Delegado:** A Arena agora sincroniza a `competition_state` globalmente via canais. O Host (criador da sala) assume a execução da Engine do Jogo no client-side para evitar custos de servidor, e dispara as atualizações que são consumidas instantaneamente pelos demais jogadores da sala via WebSockets.
+- **Modo Offline 1:1 na Arena Online:** Refeita toda a UI do Arena Multiplayer para ser identicamente pixel-perfect ao modo Offline: Barra de carregamento laranja, dropdown de velocidade de simulação turbo, tabelas dinâmicas, renderização de Campo 2D (`Field` component extraído de `team_json`), modal de resumos de fim de temporada, e cards de exportação.
+- **Exportação Social:** Integrada a funcionalidade `html2canvas` nas Arenas offline e online permitindo baixar os elencos de forma nativa e estéticamente premium para postagem no WhatsApp / Instagram.
+
+## 2026-06-13 (Parte 3 - Refinamentos e Balanceamento)
+
+### Implementado
+- **Modal de Transmissão PvP Ao Vivo:** Refatorada a UI das partidas Ao Vivo no modo Multiplayer. Agora, partidas de humanos são extraídas da aba de "Partidas" e jogadas em uma Fila (`liveMatchQueue`) que engatilha um `<AnimatePresence>` Modal gigantesco em tela cheia com fundo preto desfocado, impedindo que os jogadores percam o momento do gol caso estivessem em outra aba.
+- **Resiliência contra o Modo Turbo:** O controle de fluxo na Arena Multiplayer (`processedRound`) garante que mesmo que o Host pule da Rodada 10 para a 38 num piscar de olhos, o cliente enfileire cronologicamente cada duelo humano e passe eles na tela sequencialmente antes de exibir o card de Fim de Temporada.
+- **Nerf Global de Overalls (Rebalanceamento):** Introduzido um multiplicador de `0.90` (redução de 10%) direto no núcleo (`lib/overall.ts`). Todos os astros (Ex: Pelé de 99 para 89) e jogadores normais (Ex: de 75 para 67) caíram de produção, tornando o Draft consideravelmente mais difícil de montar "times apelões" (Galácticos), trazendo maior imersão e realismo sem destruir a hierarquia entre os craques.
+
+## 2026-06-12 (Parte 2 - Multiplayer)
 
 ### Implementado
 - **RBAC no Supabase:** Perfis na tabela `profiles` agora contam com o campo `role` (`user`, `admin`, `super_admin`), protegido por gatilhos PostgreSQL via `SECURITY DEFINER` que impedem "role escalation" por parte do cliente.

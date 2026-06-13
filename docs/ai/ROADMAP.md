@@ -5,10 +5,10 @@ Bem-vindo ao mapa do futuro do **Entrosa**. Estas são as metas organizadas por 
 ## Curto Prazo (Próximos Passos)
 - [ ] **Rankings e Tabela de Líderes Global:** Integrar a coluna `total_score` da tabela `profiles` em uma página pública para os usuários disputarem o Top 100 de solucionadores de Daily Puzzles e campeões de Draft.
 - [ ] **Sistema de Conquistas (Achievements):** Distribuir insígnias (ex: "Invicto na Copa", "Acertou puzzle de primeira 10x seguidas").
-- [ ] **Compartilhamento em Redes Sociais:** Gerar imagens do elenco de Draft via HTML Canvas para um belo layout compartilhável via Twitter/WhatsApp.
+- [x] **Compartilhamento em Redes Sociais:** Gerar imagens do elenco de Draft via HTML Canvas para um belo layout compartilhável via Twitter/WhatsApp.
 
 ## Médio Prazo (Escalabilidade & Features Core)
-- [ ] **Modos de Jogo Multipayer Simultâneos:** Permitir que 2 usuários rodem uma liga juntos, gerando um "código de sala" onde cada rodada avança simultaneamente no navegador de ambos via Supabase Realtime (WebSockets).
+- [x] **Modos de Jogo Multipayer Simultâneos:** Permitir que 2 usuários rodem uma liga juntos, gerando um "código de sala" onde cada rodada avança simultaneamente no navegador de ambos via Supabase Realtime (WebSockets).
 - [ ] **Novos Universos de Draft:** Adicionar Liga dos Campeões e Premier League (expandindo o DB SQLite de times).
 - [ ] **Engine de Substituições:** Adicionar banco de reservas real no Draft, permitindo troca de jogadores machucados ou cansados entre rodadas.
 

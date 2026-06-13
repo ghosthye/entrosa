@@ -379,13 +379,13 @@ export function getPlayerOverall(playerId: string, league: 'worldcup' | 'brasile
   const stats = statsCache.get(cacheKey)!;
   
   if (league === 'worldcup' && LEGEND_OVERRIDES[playerId]) {
-    return LEGEND_OVERRIDES[playerId];
+    return Math.floor(LEGEND_OVERRIDES[playerId] * 0.90);
   }
   
   if (league === 'brasileirao') {
     const slug = playerId.replace('INJ_', '');
     if (BRASILEIRAO_LEGENDS[slug]) {
-      return BRASILEIRAO_LEGENDS[slug];
+      return Math.floor(BRASILEIRAO_LEGENDS[slug] * 0.90);
     }
     
     let hash = 0;
@@ -394,12 +394,12 @@ export function getPlayerOverall(playerId: string, league: 'worldcup' | 'brasile
     }
     const rng = Math.abs(hash) / 2147483648; // Strictly 0 to <1
     let overall = Math.floor(65 + rng * 16); // 65 to 80
-    return overall;
+    return Math.floor(overall * 0.90);
   }
   
   // Fórmula: Base 65 + (1.2 * partidas) + (2 * torneios)
   let overall = 65 + (stats.matches * 1.2) + (stats.tournaments * 2);
   
   if (overall > 99) overall = 99;
-  return Math.floor(overall);
+  return Math.floor(overall * 0.90);
 }

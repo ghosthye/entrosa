@@ -34,6 +34,7 @@ export interface LeagueMatch {
   homeScorers?: string[];
   awayScorers?: string[];
   simulated: boolean;
+  events?: any[];
 }
 
 /**

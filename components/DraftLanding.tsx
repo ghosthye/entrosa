@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Dice3, Trophy, Shield, RefreshCcw, Swords, PlayCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Dice3, Trophy, Shield, RefreshCcw, Swords, PlayCircle, Globe } from 'lucide-react';
 import { SaveManager, EntrosaSave } from '@/lib/saveManager';
 import { useAuth } from '@/lib/useAuth';
 
@@ -76,6 +77,9 @@ export function DraftLanding({ onStart, onLoadSave }: DraftLandingProps) {
             <button onClick={() => { SaveManager.clearLocalSave(); onStart(); }} className="bg-blue-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-blue-500 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(37,99,235,0.3)]">
               Novo Draft
             </button>
+            <Link href="/draft/online" className="bg-purple-600 text-white font-bold text-lg sm:text-xl px-8 py-4 rounded-xl hover:bg-purple-500 transition-transform active:scale-95 uppercase tracking-wider text-center shadow-[0_0_15px_rgba(147,51,234,0.3)] flex items-center justify-center gap-2">
+              <Globe size={24} /> Multiplayer
+            </Link>
           </div>
         </div>
         

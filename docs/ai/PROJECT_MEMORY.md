@@ -12,13 +12,16 @@ O **Entrosa (Goleada App)** é um simulador de futebol web voltado para conhecim
 
 ## Principais Funcionalidades
 1. **Modo Draft (Copa/Brasileirão):** Sorteio de times via RNG. O jogador escolhe posições e monta um XI ideal para competir em simulações.
-2. **Modo Daily Puzzle:** Um quebra-cabeça diário estilo Wordle onde o jogador deve adivinhar o jogador oculto de um elenco histórico com base em dicas.
-3. **Admin Panel:** Interface segura exclusiva para `admin` e `super_admin` criarem novos Puzzles diários e gerenciarem os papéis de outros usuários.
-4. **Cloud Auto-Save:** O progresso no modo Draft salva de forma síncrona na memória do dispositivo (LocalStorage) e assíncrona na Nuvem (Supabase), permitindo cross-device play ("Continuar Brasileirão" em outro dispositivo).
+2. **Multiplayer em Tempo Real:** Criação de salas (`draft_rooms`) via short codes para amigos jogarem juntos. O Draft acontece em turnos sincronizados via WebSockets (Supabase Realtime) e a liga roda simulada para todos ao mesmo tempo.
+3. **Modo Daily Puzzle:** Um quebra-cabeça diário estilo Wordle onde o jogador deve adivinhar o jogador oculto de um elenco histórico com base em dicas.
+4. **Admin Panel:** Interface segura exclusiva para `admin` e `super_admin` criarem novos Puzzles diários e gerenciarem os papéis de outros usuários.
+5. **Cloud Auto-Save:** O progresso no modo Draft salva de forma síncrona na memória do dispositivo (LocalStorage) e assíncrona na Nuvem (Supabase), permitindo cross-device play ("Continuar Brasileirão" em outro dispositivo).
 
 ## Sistemas Existentes
-- **LeagueSimulation:** Algoritmo matemático para simular jogos (round-robin), classificar times, atualizar estatísticas (V/E/D, Gols) de forma determinística via OVR (Overall Rating).
+- **LeagueSimulation:** Algoritmo matemático para simular jogos (round-robin), classificar times, atualizar estatísticas (V/E/D, Gols) de forma determinística via OVR (Overall Rating). OVRs sofrem um balanceamento (nerf) na `lib/overall.ts` para evitar excesso de super-times.
 - **SaveManager:** Controlador unificado (`lib/saveManager.ts`) que gerencia a serialização do estado (matches, round, elenco) para o `localStorage` e orquestra uploads para o Supabase.
+- **Supabase Realtime (Canais):** Utilizado para sincronizar estado de Lobby (Jogadores Prontos), Turnos de Escolha (Drafting) e Simulação de Temporada (Arena) com concorrência e baixa latência.
+- **Visual Match Queue:** Um robusto sistema de fila (`liveMatchQueue`) na Arena Online que coleta partidas da rodada que envolverem duelos humanos (PvP), congelando o cliente em um Modal Overrride para assistir os lances, à prova de saltos de simulação do "Modo Turbo".
 - **useAuth Hook:** Gerencia estado reativo de login, retornando não apenas a sessão mas a `role` oficial puxada da tabela `profiles`.
 
 ## Arquitetura Atual

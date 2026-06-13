@@ -64,6 +64,38 @@ Guarda os famosos "Cloud Saves" do Draft/Liga em andamento (O sistema "Cross-Dev
 - Leitura: Somente o dono (`auth.uid() = user_id`).
 - Inserção/Atualização: Restrito ao dono (`auth.uid() = user_id`).
 
+### `draft_rooms`
+Armazena a sala multijogador em tempo real, onde as pessoas entram com um código para participarem do mesmo draft e liga.
+- `id` (uuid) - Chave primária.
+- `short_code` (text) - Código de 5 letras em maiúsculo (ex: `XKYL2`) usado para convidar amigos.
+- `status` (text) - O estado da sala: 'waiting', 'drafting', 'arena'.
+- `format` (text) - Tipo do campeonato escolhido pelo Host ('liga' ou 'final').
+- `settings` (jsonb) - Configurações detalhadas do lobby (turno cronometrado, jogos de ida/volta, etc).
+- `current_turn_index` (integer) - Quando no draft, aponta o index de quem é a vez de escolher.
+- `available_players` (jsonb) - Lista rotativa dos jogadores de futebol oferecidos no draft atual (roleta).
+- `competition_state` (jsonb) - O payload completo da simulação matemática esportiva da Arena, assim como na tabela `saves`.
+- `created_at` (timestamp).
+
+**Políticas RLS:**
+- Leitura: Público ou via Autenticação (Qualquer um pode ler para achar a sala via código).
+- Escrita/Atualização: A inserção inicial e a atualização normalmente seriam restritas ao Host, porém a lógica de escalonamento está sendo parcialmente gerenciada via server ou aberta devido à natureza de fast-paced gameplay.
+
+### `draft_room_players`
+Os participantes de uma dada sala de draft.
+- `id` (uuid) - Chave primária.
+- `room_id` (uuid, FK para draft_rooms.id).
+- `player_id` (uuid, opcional, FK para auth.users.id se logado).
+- `player_name` (text) - Nome do usuário dentro do lobby (pode ser Anônimo).
+- `is_host` (boolean) - Determina quem tem os controles de avançar fase e gerar CPU.
+- `is_ready` (boolean) - Flag de pronto no lobby.
+- `team_json` (jsonb) - O elenco que o jogador escolheu e formou na tática durante a fase de draft.
+- `overall` (integer) - Overall Rating final do jogador.
+- `created_at` (timestamp).
+
+**Políticas RLS:**
+- Leitura: Público ou membros da sala.
+- Inserção/Atualização: Permitido anonimamente para que jogadores sem conta possam ser convidados e entrar na sala pelo celular do amigo.
+
 ## Triggers & Functions (Gatilhos)
 
 ### `on_auth_user_created`
