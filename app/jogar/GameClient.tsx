@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { loadGameState, saveGameState, clearGameState, updateDailyStreak, updateUserStats, loadUserStats, getTopPlayer, getTopConnection, getTopClub, getTopNation, getTopTactic } from '@/lib/storage';
 import { formationsMap } from '@/lib/formations';
 import { supabase } from '@/lib/supabase';
+import { evaluateAndNotifyAchievements } from '@/lib/achievements';
 
 interface GameClientProps {
   mode: 'puzzle' | 'livre';
@@ -174,7 +175,11 @@ export default function GameClient({ puzzle, startingPlayer, mode, nextTeaser, o
             favorite_tactic: topTactic ? topTactic[0] : null,
           }, { onConflict: 'id' }).then(({ error }) => {
             if (error) console.error("Error saving puzzle stats to Supabase:", error);
+            else evaluateAndNotifyAchievements();
           });
+        } else {
+          // Usuário anônimo/deslogado, avalia só com dados locais
+          evaluateAndNotifyAchievements();
         }
       });
     }

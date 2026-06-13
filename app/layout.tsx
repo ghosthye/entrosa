@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { AchievementToast } from "@/components/AchievementToast";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -39,6 +40,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <AchievementToast />
           <Analytics />
           <SpeedInsights />
         </Providers>

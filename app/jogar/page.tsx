@@ -38,7 +38,24 @@ export default async function JogarPage() {
     GROUP BY p.player_id
   `);
   
-  const playerRecord = stmt.get(puzzle.startingPlayerId) as any;
+  const getPlayerInfo = (playerId: string) => {
+    let record = stmt.get(playerId) as any;
+    if (!record) {
+      const dbBr = getDb('brasileirao');
+      const stmtBr = dbBr.prepare(`
+        SELECT p.given_name, p.family_name, p.face_url, MAX(t.team_name) as team_name, MAX(s.position_code) as position_code
+        FROM players p
+        LEFT JOIN squads s ON p.player_id = s.player_id
+        LEFT JOIN teams t ON s.team_id = t.team_id
+        WHERE p.player_id = ?
+        GROUP BY p.player_id
+      `);
+      record = stmtBr.get(playerId) as any;
+    }
+    return record;
+  };
+
+  const playerRecord = getPlayerInfo(puzzle.startingPlayerId);
   const givenName = playerRecord?.given_name === 'not applicable' ? '' : (playerRecord?.given_name || '');
   const familyName = playerRecord?.family_name === 'not applicable' ? '' : (playerRecord?.family_name || '');
   
@@ -60,8 +77,16 @@ export default async function JogarPage() {
     .single();
 
   const nextPuzzleId = nextPuzzleData ? nextPuzzleData.starting_player_id : 'P-38906';
-  const nextPlayerRecord = stmt.get(nextPuzzleId) as any;
-  const nextCountry = nextPlayerRecord ? nextPlayerRecord.team_name : 'desconhecido';
+  const nextPlayerRecord = getPlayerInfo(nextPuzzleId);
+  
+  let nextCountry = nextPlayerRecord?.team_name;
+  if (nextCountry) {
+    // Limpa o ano se for time brasileiro (ex: São Paulo 1992 -> São Paulo)
+    nextCountry = nextCountry.replace(/\s\d{4}$/, '').trim();
+  } else {
+    nextCountry = 'desconhecido';
+  }
+  
   const nextTeaser = `Próximo puzzle em breve — começa com um craque de: ${nextCountry} ⏳`;
 
   return <GameClient puzzle={puzzle} startingPlayer={startingPlayer} mode="puzzle" nextTeaser={nextTeaser} />;

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { FormationNode } from '@/components/Field';
+import { evaluateAndNotifyAchievements } from '@/lib/achievements';
 
 export type SaveStatus = 'in_progress' | 'finished' | 'archived';
 
@@ -151,6 +152,8 @@ export const SaveManager = {
       if (!localData.id && data?.id) {
         SaveManager.saveLocally({ id: data.id, mode: localData.mode });
       }
+
+      evaluateAndNotifyAchievements();
 
       return true;
     } catch (e) {
