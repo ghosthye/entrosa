@@ -313,7 +313,6 @@ export default function DraftOnlineClient() {
                   <h2 className="font-display text-3xl text-white uppercase tracking-wider leading-none">Draft</h2>
                   <p className="text-secondary text-[10px] font-mono uppercase tracking-widest mt-1">Modo Multiplayer</p>
                 </div>
-                </div>
                 <div className="flex items-center gap-2">
                   {(role === 'admin' || role === 'super_admin') && (
                     <button 
