@@ -652,14 +652,33 @@ export default function ArenaOnlinePage() {
                 const homeIsReal = players.some(p => p.id === home?.id);
                 const awayIsReal = players.some(p => p.id === away?.id);
                 const isPlayerMatch = (home?.id === localPlayerId || away?.id === localPlayerId) && homeIsReal && awayIsReal;
+                const isLive = isVisualSimulating && currentLiveRound === m.round && isPlayerMatch;
                 
                 if (!home || !away) return null;
 
-                // Removido o Super Card da listagem - todos agora usam o Card Simples
+                let displayHomeGoals = m.homeGoals;
+                let displayAwayGoals = m.awayGoals;
+                let displayHomeScorers = m.homeScorers;
+                let displayAwayScorers = m.awayScorers;
 
-                // Card Simples para jogos das IAs
+                if (isLive && m.events) {
+                  const liveEvents = m.events.filter((e: any) => e.minute <= matchMinute);
+                  displayHomeGoals = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'player').length;
+                  displayAwayGoals = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'opponent').length;
+                  displayHomeScorers = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'player').map((e:any) => e.scorerName!);
+                  displayAwayScorers = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'opponent').map((e:any) => e.scorerName!);
+                }
+
                 return (
-                  <div key={idx} className="p-4 rounded-xl border flex flex-col gap-3 bg-black/40 border-white/10 opacity-70 hover:opacity-100 transition-opacity">
+                  <div key={idx} className={`p-4 rounded-xl border flex flex-col gap-3 bg-black/40 opacity-70 hover:opacity-100 transition-opacity ${isLive ? 'border-amarelo-gol shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'border-white/10'}`}>
+                    {isLive && (
+                      <div className="text-center w-full mb-[-10px]">
+                        <span className="text-[10px] text-amarelo-gol animate-pulse font-bold tracking-widest inline-flex items-center gap-1.5 bg-black/80 px-2 py-0.5 rounded-full border border-amarelo-gol/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amarelo-gol"></span>
+                          {matchMinute}'
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex-1 flex flex-col items-end">
                         <span className="text-xs font-bold uppercase truncate text-white/70">{home.name}</span>
@@ -667,10 +686,10 @@ export default function ArenaOnlinePage() {
                       </div>
                       
                       <div className="px-4">
-                        <div className="bg-black/80 px-4 py-2 rounded-lg font-display text-xl flex items-center gap-3 border border-white/10 min-w-[90px] justify-center shadow-inner">
-                          <span className={m.homeGoals! > m.awayGoals! ? 'text-amarelo-gol' : 'text-white'}>{m.homeGoals ?? '-'}</span>
-                          <span className="text-white/20 text-sm">X</span>
-                          <span className={m.awayGoals! > m.homeGoals! ? 'text-amarelo-gol' : 'text-white'}>{m.awayGoals ?? '-'}</span>
+                        <div className={`bg-black/80 px-4 py-2 rounded-lg font-display text-xl flex items-center gap-3 border min-w-[90px] justify-center shadow-inner ${isLive ? 'border-amarelo-gol/50' : 'border-white/10'}`}>
+                          <span className={displayHomeGoals! > displayAwayGoals! ? 'text-amarelo-gol' : 'text-white'}>{displayHomeGoals ?? '-'}</span>
+                          <span className={`${isLive ? 'text-amarelo-gol/50 animate-pulse' : 'text-white/20'} text-sm`}>X</span>
+                          <span className={displayAwayGoals! > displayHomeGoals! ? 'text-amarelo-gol' : 'text-white'}>{displayAwayGoals ?? '-'}</span>
                         </div>
                       </div>
 
@@ -680,13 +699,13 @@ export default function ArenaOnlinePage() {
                       </div>
                     </div>
                     
-                    {((m.homeScorers?.length || 0) + (m.awayScorers?.length || 0) > 0) && (
+                    {((displayHomeScorers?.length || 0) + (displayAwayScorers?.length || 0) > 0) && (
                       <>
                         <div className="h-px bg-white/5 w-full"></div>
                         <div className="flex justify-between text-[9px] text-white/50 uppercase tracking-wider px-2">
-                          <div className="flex-1 text-right truncate text-verde-grama/80">{formatScorers(m.homeScorers || [])}</div>
+                          <div className="flex-1 text-right truncate text-verde-grama/80">{formatScorers(displayHomeScorers || [])}</div>
                           <div className="w-16"></div>
-                          <div className="flex-1 text-left truncate text-verde-grama/80">{formatScorers(m.awayScorers || [])}</div>
+                          <div className="flex-1 text-left truncate text-verde-grama/80">{formatScorers(displayAwayScorers || [])}</div>
                         </div>
                       </>
                     )}
