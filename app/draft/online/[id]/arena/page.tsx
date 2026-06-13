@@ -960,9 +960,9 @@ export default function ArenaOnlinePage() {
             exit={{ opacity: 0, y: 50 }}
             className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-start p-4 sm:p-8 py-12 overflow-y-auto custom-scrollbar"
           >
-            <div className="w-full max-w-6xl relative flex flex-col items-center">
-              <button onClick={() => setShowSummary(false)} className="absolute -top-12 right-0 p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-50">
-                <X size={20} />
+            <div className="w-full max-w-6xl relative flex flex-col items-center mt-8">
+              <button onClick={() => setShowSummary(false)} className="fixed top-4 right-4 sm:top-8 sm:right-8 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-[100] shadow-lg backdrop-blur-sm cursor-pointer">
+                <X size={24} />
               </button>
               
               {/* Card Exportável Widescreen */}
