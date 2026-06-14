@@ -35,6 +35,7 @@ export interface LeagueMatch {
   awayScorers?: string[];
   simulated: boolean;
   events?: any[];
+  penalties?: PenaltyShootout;
 }
 
 /**

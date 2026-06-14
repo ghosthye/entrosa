@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Play, Trophy, FastForward, List, Image as ImageIcon, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { motion } from 'framer-motion';
-import { HistoricTeam, simulateMatch, MatchResult } from '@/lib/simulation';
-import { ChainNode } from '@/components/ChainBar';
-import { FormationNode } from '@/components/Field';
+import { X, Play, Trophy, Swords, Users, FastForward, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { SaveManager, EntrosaSave } from '@/lib/saveManager';
+import { Field, FormationNode } from '@/components/Field';
+import html2canvas from 'html2canvas';
+
+import { 
+  LeagueTeam, 
+  LeagueMatch, 
+  simulateLeagueMatch,
+  getStandings
+} from '@/lib/leagueSimulation';
+import { 
+  CopaState, 
+  generateCopaGroupMatches, 
+  generateCopaKnockout, 
+  advanceKnockoutPhase, 
+  simulateCopaKnockoutMatch 
+} from '@/lib/copaSimulation';
 
 interface CopaModalProps {
   onClose: () => void;
@@ -18,75 +30,249 @@ interface CopaModalProps {
   loadedSave?: Partial<EntrosaSave> | null;
 }
 
-interface GroupTeam {
-  id: string;
-  name: string;
-  year?: number;
-  isPlayer: boolean;
-  ovr: number;
-  playerNames?: string[];
-  pts: number;
-  pld: number;
-  win: number;
-  draw: number;
-  loss: number;
-  gf: number;
-  ga: number;
-  gd: number;
-}
-
-interface PastMatch {
-  id: string;
-  phase: string;
-  opponent: GroupTeam;
-  playerGoals: number;
-  opponentGoals: number;
-  playerScorers: string[];
-  opponentScorers: string[];
-  penaltyScore?: { player: number, opponent: number };
-  penaltyDetails?: {
-    player: { name: string, isGoal: boolean }[];
-    opponent: { name: string, isGoal: boolean }[];
-  };
-}
-
-function getRandomScorer(names: string[]): string {
-  if (!names || names.length === 0) return 'Jogador';
-  const index = Math.floor(Math.pow(Math.random(), 2) * names.length);
-  return names[index] || 'Jogador';
-}
-
 export function CopaModal({ onClose, playerTeam, teamOverall, nodes2D, league = 'worldcup', customTeamName, loadedSave }: CopaModalProps) {
-  const [opponents, setOpponents] = useState<HistoricTeam[]>([]);
-  const [groupStandings, setGroupStandings] = useState<GroupTeam[]>([]);
+  const [copaState, setCopaState] = useState<CopaState | null>(null);
+  const [activeTab, setActiveTab] = useState<'TABELA' | 'PARTIDAS' | 'MATA-MATA' | 'ELENCO'>('TABELA');
   
-  const [tournamentPhase, setTournamentPhase] = useState<'Grupos' | 'Oitavas' | 'Quartas' | 'Semi' | 'Final' | 'Eliminado' | 'Campeão'>('Grupos');
-  const [currentRound, setCurrentRound] = useState(1); 
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [isVisualSimulating, setIsVisualSimulating] = useState(false);
+  const [matchMinute, setMatchMinute] = useState(0);
   
-  const [activeTab, setActiveTab] = useState<'Partida' | 'Campanha' | 'Card'>('Partida');
-  const [pastMatches, setPastMatches] = useState<PastMatch[]>([]);
-  const [eliminatedPhase, setEliminatedPhase] = useState<string | null>(null);
-
-  const [matchLog, setMatchLog] = useState<string[]>([]);
-  const [score, setScore] = useState({ player: 0, opponent: 0 });
-  const [minute, setMinute] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [matchEnded, setMatchEnded] = useState(false);
-  const [speed, setSpeed] = useState<'normal' | 'rápida'>('normal');
+  const [showSummary, setShowSummary] = useState(false);
+  const [simSpeed, setSimSpeed] = useState(50); // ms por minuto (50ms * 90 = ~4.5s)
+  
   const cardRef = useRef<HTMLDivElement>(null);
+  
+  const PLAYER_ID = 'player';
+  const playerNamesArray = nodes2D.flat().filter(n => n.playerName).map(n => n.playerName) as string[];
+  const playerPositionsArray = nodes2D.flat().filter(n => n.playerName).map(n => n.position) as string[];
 
-  const [penaltyPhase, setPenaltyPhase] = useState(false);
-  const [penaltyScore, setPenaltyScore] = useState({ player: 0, opponent: 0 });
-  const [penaltiesHistory, setPenaltiesHistory] = useState({ player: [] as boolean[], opponent: [] as boolean[] });
+  // Initialization
+  useEffect(() => {
+    if (loadedSave?.competition_state?.groups) {
+      // É um save novo, no formato CopaState
+      setCopaState(loadedSave.competition_state as CopaState);
+      if (loadedSave.competition_state.currentRound >= 7 || loadedSave.competition_state.tournamentPhase === 'Eliminado') {
+        setShowSummary(true);
+      }
+      return;
+    }
 
-  const [cpuLiveMatch, setCpuLiveMatch] = useState<{ goalsA: number, goalsB: number } | null>(null);
+    // Inicialização do zero
+    const fetchOpponents = async () => {
+      const url = league ? `/api/opponents?league=${league}` : '/api/opponents';
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      const playerT: LeagueTeam = {
+        id: PLAYER_ID, 
+        name: customTeamName || 'Você', 
+        year: new Date().getFullYear(),
+        ovr: teamOverall, 
+        playerNames: playerNamesArray,
+        positionCodes: playerPositionsArray,
+        isRealPlayer: true,
+        stats: { pts: 0, v: 0, e: 0, d: 0, gf: 0, ga: 0, sg: 0 }
+      };
 
-  const saveDraftStats = async (isChampion: boolean, finalScorePlayer: number, finalScoreOpponent: number) => {
-    let tGoals = pastMatches.reduce((acc, m) => acc + (m.playerGoals || 0), 0);
-    tGoals += finalScorePlayer;
+      const cpus: LeagueTeam[] = data.map((d: any, i: number) => ({
+        id: `cpu-${i+1}`,
+        name: d.teamName,
+        year: d.tournamentYear,
+        ovr: d.averageOverall,
+        playerNames: d.playerNames || [],
+        positionCodes: d.playerPositions || [],
+        isRealPlayer: false,
+        stats: { pts: 0, v: 0, e: 0, d: 0, gf: 0, ga: 0, sg: 0 }
+      })).slice(0, 31); // Pega 31 times
+      
+      const allTeams = [playerT, ...cpus];
+      
+      // Shuffle teams
+      for (let i = allTeams.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allTeams[i], allTeams[j]] = [allTeams[j], allTeams[i]];
+      }
 
-    let tConceded = pastMatches.reduce((acc, m) => acc + (m.opponentGoals || 0), 0);
-    tConceded += finalScoreOpponent;
+      const { groups, matches } = generateCopaGroupMatches(allTeams);
+
+      const initialState: CopaState = {
+        version: 2,
+        currentRound: 0,
+        totalRounds: 7, // 3 grupos + 4 mata
+        teams: allTeams,
+        matches,
+        scorersMap: {},
+        groups,
+        knockoutBrackets: []
+      };
+
+      setCopaState(initialState);
+    };
+
+    fetchOpponents();
+  }, [teamOverall]);
+
+  // Save to SaveManager effect
+  useEffect(() => {
+    if (!copaState || isVisualSimulating) return;
+
+    const isFinished = copaState.currentRound === 7 || isPlayerEliminated(copaState);
+    
+    SaveManager.saveLocally({
+      save_name: `Copa - ${customTeamName || 'Seu Time'}`,
+      mode: 'worldcup',
+      status: isFinished ? 'finished' : 'in_progress',
+      custom_team_name: customTeamName || 'Seu Time',
+      team_overall: teamOverall,
+      nodes_2d: nodes2D,
+      is_champion: isPlayerChampion(copaState),
+      competition_state: {
+        ...copaState,
+        tournamentPhase: isFinished ? (isPlayerChampion(copaState) ? 'Campeão' : 'Eliminado') : (copaState.currentRound < 3 ? 'Grupos' : 'Mata-Mata')
+      } as any
+    });
+
+    SaveManager.syncToCloud('worldcup');
+  }, [copaState?.currentRound, isVisualSimulating]);
+
+  const isPlayerEliminated = (state: CopaState) => {
+    if (state.currentRound < 3) return false;
+    
+    const playerGrp = Object.entries(state.groups).find(([g, ids]) => ids.includes(PLAYER_ID));
+    if (!playerGrp) return true;
+    
+    const grpTeams = state.groups[playerGrp[0]].map(id => state.teams.find(t => t.id === id)!);
+    const standings = getStandings(grpTeams);
+    const playerRank = standings.findIndex(t => t.id === PLAYER_ID);
+    
+    if (state.currentRound === 3 && playerRank > 1) return true; // Eliminado nos grupos
+    
+    if (state.currentRound >= 4) {
+      // Se estamos no mata-mata, o player só está vivo se ele tiver uma partida na próxima rodada ou se for a atual
+      const isAlive = state.matches.some(m => m.round === state.currentRound + 1 && (m.homeId === PLAYER_ID || m.awayId === PLAYER_ID));
+      const hasMatchInCurrent = state.matches.some(m => m.round === state.currentRound && (m.homeId === PLAYER_ID || m.awayId === PLAYER_ID));
+      
+      if (!isAlive && !hasMatchInCurrent) return true; // Caiu em rodadas anteriores
+      
+      // Se a rodada já simulou e ele perdeu
+      const playerMatch = state.matches.find(m => m.round === state.currentRound && (m.homeId === PLAYER_ID || m.awayId === PLAYER_ID));
+      if (playerMatch?.simulated) {
+        if (playerMatch.penalties) {
+          if (playerMatch.homeId === PLAYER_ID && playerMatch.penalties.winner !== 'player') return true;
+          if (playerMatch.awayId === PLAYER_ID && playerMatch.penalties.winner !== 'opponent') return true;
+        } else {
+          if (playerMatch.homeId === PLAYER_ID && playerMatch.awayGoals! > playerMatch.homeGoals!) return true;
+          if (playerMatch.awayId === PLAYER_ID && playerMatch.homeGoals! > playerMatch.awayGoals!) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const isPlayerChampion = (state: CopaState) => {
+    if (state.currentRound < 7) return false;
+    const finalMatch = state.matches.find(m => m.round === 7);
+    if (!finalMatch || !finalMatch.simulated) return false;
+    if (finalMatch.homeId !== PLAYER_ID && finalMatch.awayId !== PLAYER_ID) return false;
+    
+    if (finalMatch.penalties) {
+      return (finalMatch.homeId === PLAYER_ID && finalMatch.penalties.winner === 'player') || (finalMatch.awayId === PLAYER_ID && finalMatch.penalties.winner === 'opponent');
+    }
+    return (finalMatch.homeId === PLAYER_ID && finalMatch.homeGoals! > finalMatch.awayGoals!) || (finalMatch.awayId === PLAYER_ID && finalMatch.awayGoals! > finalMatch.homeGoals!);
+  };
+
+  const simulateRound = () => {
+    if (!copaState || isSimulating || copaState.currentRound >= 7) return;
+    setIsSimulating(true);
+
+    const roundToSimulate = copaState.currentRound + 1;
+    const newMatches = [...copaState.matches];
+    const newTeams = copaState.teams.map(t => ({ ...t, stats: { ...t.stats } }));
+    
+    let isKnockout = roundToSimulate >= 4;
+
+    newMatches.forEach((m, idx) => {
+      if (m.round === roundToSimulate && !m.simulated) {
+        const home = newTeams.find(t => t.id === m.homeId)!;
+        const away = newTeams.find(t => t.id === m.awayId)!;
+
+        const result = isKnockout ? simulateCopaKnockoutMatch(home, away) : simulateLeagueMatch(home, away);
+
+        // Atualizar stats dos times para fase de grupos
+        if (!isKnockout) {
+          home.stats.gf += result.playerGoals;
+          home.stats.ga += result.opponentGoals;
+          home.stats.sg = home.stats.gf - home.stats.ga;
+
+          away.stats.gf += result.opponentGoals;
+          away.stats.ga += result.playerGoals;
+          away.stats.sg = away.stats.gf - away.stats.ga;
+
+          if (result.playerGoals > result.opponentGoals) {
+            home.stats.pts += 3; home.stats.v += 1; away.stats.d += 1;
+          } else if (result.playerGoals < result.opponentGoals) {
+            away.stats.pts += 3; away.stats.v += 1; home.stats.d += 1;
+          } else {
+            home.stats.pts += 1; away.stats.pts += 1; home.stats.e += 1; away.stats.e += 1;
+          }
+        }
+
+        newMatches[idx] = {
+          ...m,
+          simulated: true,
+          homeGoals: result.playerGoals,
+          awayGoals: result.opponentGoals,
+          homeScorers: result.events.filter(e => e.team === 'player' && e.type === 'goal').map(e => e.scorerName!),
+          awayScorers: result.events.filter(e => e.team === 'opponent' && e.type === 'goal').map(e => e.scorerName!),
+          events: result.events,
+          penalties: result.penalties
+        };
+      }
+    });
+
+    // Se for rodada 3, gerar os confrontos das Oitavas
+    if (roundToSimulate === 3) {
+      const oitavas = generateCopaKnockout(copaState.groups, newTeams);
+      newMatches.push(...oitavas);
+    }
+
+    // Se for mata-mata e não for final, gerar a próxima chave
+    if (roundToSimulate >= 4 && roundToSimulate < 7) {
+      const nextPhase = advanceKnockoutPhase(roundToSimulate, newMatches);
+      newMatches.push(...nextPhase);
+    }
+
+    setCopaState({
+      ...copaState,
+      currentRound: roundToSimulate,
+      teams: newTeams,
+      matches: newMatches
+    });
+    
+    setMatchMinute(0);
+    setIsVisualSimulating(true);
+    if (activeTab !== 'PARTIDAS') setActiveTab('PARTIDAS');
+  };
+
+  const saveDraftStats = async (isChampion: boolean) => {
+    if (!copaState) return;
+    
+    // Sum all goals scored and conceded by the player in all matches
+    const playerMatches = copaState.matches.filter(m => m.simulated && (m.homeId === PLAYER_ID || m.awayId === PLAYER_ID));
+    
+    let tGoals = 0;
+    let tConceded = 0;
+    
+    playerMatches.forEach(m => {
+      if (m.homeId === PLAYER_ID) {
+        tGoals += m.homeGoals || 0;
+        tConceded += m.awayGoals || 0;
+      } else {
+        tGoals += m.awayGoals || 0;
+        tConceded += m.homeGoals || 0;
+      }
+    });
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -124,797 +310,389 @@ export function CopaModal({ onClose, playerTeam, teamOverall, nodes2D, league = 
     }
   };
 
-  // Extrair nomes de jogadores do nodes2D
-  const playerNamesArray = nodes2D.flat().filter(n => n.playerName).map(n => n.playerName) as string[];
-  const playerPositionsArray = nodes2D.flat().filter(n => n.playerName).map(n => n.position) as string[];
-
-  // Auto-Save Effect
+  // Timer da simulação visual
   useEffect(() => {
-    if (opponents.length === 0) return;
-    
-    const isFinished = tournamentPhase === 'Campeão' || tournamentPhase === 'Eliminado';
-    SaveManager.saveLocally({
-      save_name: `Copa - ${customTeamName || 'Seu Time'}`,
-      mode: 'worldcup',
-      status: isFinished ? 'finished' : 'in_progress',
-      custom_team_name: customTeamName || 'Seu Time',
-      team_overall: teamOverall,
-      nodes_2d: nodes2D,
-      is_champion: tournamentPhase === 'Campeão',
-      competition_state: {
-        version: 1,
-        currentRound,
-        totalRounds: 7, // Copa tem max 7 rodadas (3 grupo + 4 mata)
-        teams: opponents,
-        matches: pastMatches,
-        scorersMap: {},
-        groupStandings,
-        tournamentPhase,
-        eliminatedPhase
-      }
-    });
+    if (isVisualSimulating && copaState) {
+      const currentMatches = copaState.matches.filter(m => m.round === copaState.currentRound);
+      const hasPenalties = currentMatches.some(m => m.penalties);
+      const maxMinute = hasPenalties ? 120 : 90;
 
-    SaveManager.syncToCloud('worldcup');
-  }, [currentRound, tournamentPhase, pastMatches, groupStandings, eliminatedPhase, opponents, customTeamName, teamOverall, nodes2D]);
-
-  useEffect(() => {
-    if (loadedSave?.competition_state) {
-      const state = loadedSave.competition_state;
-      setOpponents(state.teams || []);
-      setGroupStandings(state.groupStandings || []);
-      setPastMatches(state.matches || []);
-      setCurrentRound(state.currentRound || 1);
-      setTournamentPhase(state.tournamentPhase || 'Grupos');
-      setEliminatedPhase(state.eliminatedPhase || null);
-      if (state.tournamentPhase === 'Campeão' || state.tournamentPhase === 'Eliminado') {
-        setActiveTab('Card');
-      }
-      return;
-    }
-
-    const url = league ? `/api/opponents?league=${league}` : '/api/opponents';
-    fetch(url)
-      .then(res => res.json())
-      .then((data: HistoricTeam[]) => {
-        setOpponents(data);
-        const playerT: GroupTeam = {
-          id: 'player', name: customTeamName || 'Você', isPlayer: true, ovr: teamOverall, playerNames: playerNamesArray as string[],
-          pts: 0, pld: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0
-        };
-        const cpu1: GroupTeam = {
-          id: 'cpu1', name: data[0].teamName, year: data[0].tournamentYear, isPlayer: false, ovr: data[0].averageOverall, playerNames: data[0].playerNames,
-          pts: 0, pld: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0
-        };
-        const cpu2: GroupTeam = {
-          id: 'cpu2', name: data[1].teamName, year: data[1].tournamentYear, isPlayer: false, ovr: data[1].averageOverall, playerNames: data[1].playerNames,
-          pts: 0, pld: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0
-        };
-        const cpu3: GroupTeam = {
-          id: 'cpu3', name: data[2].teamName, year: data[2].tournamentYear, isPlayer: false, ovr: data[2].averageOverall, playerNames: data[2].playerNames,
-          pts: 0, pld: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0
-        };
-        setGroupStandings([playerT, cpu1, cpu2, cpu3]);
-      });
-  }, [teamOverall]);
-
-  const getPlayerOpponentForRound = (): GroupTeam | null => {
-    if (tournamentPhase === 'Grupos') {
-      if (currentRound === 1) return groupStandings.find(t => t.id === 'cpu1') || null;
-      if (currentRound === 2) return groupStandings.find(t => t.id === 'cpu2') || null;
-      if (currentRound === 3) return groupStandings.find(t => t.id === 'cpu3') || null;
-    } else if (tournamentPhase === 'Oitavas' && opponents[3]) {
-      return { id: 'k1', name: opponents[3].teamName, year: opponents[3].tournamentYear, isPlayer: false, ovr: opponents[3].averageOverall, playerNames: opponents[3].playerNames } as GroupTeam;
-    } else if (tournamentPhase === 'Quartas' && opponents[4]) {
-      return { id: 'k2', name: opponents[4].teamName, year: opponents[4].tournamentYear, isPlayer: false, ovr: opponents[4].averageOverall, playerNames: opponents[4].playerNames } as GroupTeam;
-    } else if (tournamentPhase === 'Semi' && opponents[5]) {
-      return { id: 'k3', name: opponents[5].teamName, year: opponents[5].tournamentYear, isPlayer: false, ovr: opponents[5].averageOverall, playerNames: opponents[5].playerNames } as GroupTeam;
-    } else if (tournamentPhase === 'Final' && opponents[6]) {
-      return { id: 'k4', name: opponents[6].teamName, year: opponents[6].tournamentYear, isPlayer: false, ovr: opponents[6].averageOverall, playerNames: opponents[6].playerNames } as GroupTeam;
-    }
-    return null;
-  };
-
-  const startPenaltyShootout = (opponent: GroupTeam, matchId: string) => {
-    let round = 1;
-    let pScore = 0;
-    let oScore = 0;
-    let pHistory: boolean[] = [];
-    let oHistory: boolean[] = [];
-    
-    let pDetails: { name: string, isGoal: boolean }[] = [];
-    let oDetails: { name: string, isGoal: boolean }[] = [];
-
-    let turn: 'player' | 'opponent' = 'player';
-    
-    const diff = teamOverall - opponent.ovr;
-    let playerHitChance = 0.75 + (diff * 0.01); 
-    playerHitChance = Math.max(0.4, Math.min(0.95, playerHitChance));
-    let opponentHitChance = 0.75 - (diff * 0.01);
-    opponentHitChance = Math.max(0.4, Math.min(0.95, opponentHitChance));
-
-    const pTimer = setInterval(() => {
-      let isGoal = false;
-      let logMsg = '';
-      
-      if (turn === 'player') {
-        const taker = playerNamesArray.length > 0 ? playerNamesArray[(round - 1) % playerNamesArray.length] : 'Jogador';
-        isGoal = Math.random() < playerHitChance;
-        pHistory = [...pHistory, isGoal];
-        pDetails.push({ name: taker, isGoal });
-        if (isGoal) pScore++;
-        logMsg = isGoal ? `${taker} vai pra cobrança... GOL! Cobrança perfeita!` : `${taker} na bola... DEFESA DO GOLEIRO! Perdeu!`;
-      } else {
-        const oppNames = opponent.playerNames || [];
-        const taker = oppNames.length > 0 ? oppNames[(round - 1) % oppNames.length] : 'Jogador';
-        isGoal = Math.random() < opponentHitChance;
-        oHistory = [...oHistory, isGoal];
-        oDetails.push({ name: taker, isGoal });
-        if (isGoal) oScore++;
-        logMsg = isGoal ? `${taker} bate e... GOL!` : `${taker} toma distância... NA TRAVE! Perdeu!`;
-      }
-      
-      setPenaltiesHistory({ player: pHistory, opponent: oHistory });
-      setPenaltyScore({ player: pScore, opponent: oScore });
-      setMatchLog(prev => [logMsg, ...prev].slice(0, 5));
-
-      let isGameOver = false;
-      
-      if (turn === 'opponent') {
-        if (round <= 5) {
-          const remainingKicks = 5 - round;
-          if (pScore > oScore + remainingKicks) isGameOver = true;
-          if (oScore > pScore + remainingKicks) isGameOver = true;
-        } else {
-          if (pScore !== oScore) isGameOver = true;
-        }
-        
-        if (!isGameOver) {
-          round++;
-          turn = 'player';
-        }
-      } else {
-        if (round <= 5) {
-           const pRemaining = 5 - round;
-           const oRemaining = 5 - round + 1;
-           if (pScore > oScore + oRemaining) isGameOver = true;
-           if (oScore > pScore + pRemaining) isGameOver = true;
-        }
-        if (!isGameOver) turn = 'opponent';
-      }
-      
-      if (isGameOver) {
-        clearInterval(pTimer);
-        setIsPlaying(false);
-        setMatchEnded(true);
-        setMatchLog(prev => [`Fim das cobranças! ${pScore > oScore ? 'VITÓRIA' : 'DERROTA'} NOS PÊNALTIS!`, ...prev]);
-        
-        setPastMatches(prev => prev.map(m => {
-          if (m.id === matchId) {
-            return { ...m, penaltyScore: { player: pScore, opponent: oScore }, penaltyDetails: { player: pDetails, opponent: oDetails } };
+      const interval = setInterval(() => {
+        setMatchMinute(prev => {
+          if (prev >= maxMinute) {
+            clearInterval(interval);
+            setIsVisualSimulating(false);
+            setIsSimulating(false);
+            
+            // Check se eliminou ou ganhou pra mostrar o summary
+            if (copaState.currentRound === 7 || isPlayerEliminated(copaState)) {
+              saveDraftStats(isPlayerChampion(copaState));
+              setTimeout(() => setShowSummary(true), 2000);
+            }
+            return maxMinute;
           }
-          return m;
-        }));
+          return prev + 2; // +2 min por tick pra ser rápido
+        });
+      }, simSpeed);
 
-        if (pScore < oScore) {
-          setTimeout(() => {
-            setEliminatedPhase(tournamentPhase);
-            setTournamentPhase('Eliminado');
-            setActiveTab('Card');
-            saveDraftStats(false, score.player, score.opponent);
-          }, 3000);
-        } else if (tournamentPhase === 'Final') {
-          setTimeout(() => {
-            setTournamentPhase('Campeão');
-            setActiveTab('Card');
-            saveDraftStats(true, score.player, score.opponent);
-          }, 3000);
-        }
-      }
-      
-    }, speed === 'rápida' ? 1000 : 2500);
-  };
-
-  const startMatch = () => {
-    setIsPlaying(true);
-    setMatchEnded(false);
-    setPenaltyPhase(false);
-    setPenaltyScore({ player: 0, opponent: 0 });
-    setPenaltiesHistory({ player: [], opponent: [] });
-    setScore({ player: 0, opponent: 0 });
-    setMatchLog(['Apita o árbitro! Começa o jogo!']);
-    setMinute(0);
-
-    const opponent = getPlayerOpponentForRound();
-    if (!opponent) return;
-
-    const result = simulateMatch(teamOverall, opponent.ovr, playerNamesArray, opponent.playerNames, false, playerPositionsArray, []);
-
-    let cpuResult: any = null;
-    if (tournamentPhase === 'Grupos') {
-      const cpuTeamAId = currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1');
-      const cpuTeamBId = currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2');
-      const cpuA = groupStandings.find(t => t.id === cpuTeamAId)!;
-      const cpuB = groupStandings.find(t => t.id === cpuTeamBId)!;
-      cpuResult = simulateMatch(cpuA.ovr, cpuB.ovr, cpuA.playerNames, cpuB.playerNames, false, [], []);
-      setCpuLiveMatch({ goalsA: 0, goalsB: 0 });
+      return () => clearInterval(interval);
     }
+  }, [isVisualSimulating, simSpeed, copaState]);
 
-    let currentMin = 0;
-    let currentGoalsPlayer = 0;
-    let currentGoalsOpponent = 0;
-    let currentCpuGoalsA = 0;
-    let currentCpuGoalsB = 0;
-    let playerScorers: string[] = [];
-    let opponentScorers: string[] = [];
-    const intervalTime = speed === 'rápida' ? 50 : 200;
-
-    const matchId = `match-${Date.now()}`;
-
-    const timer = setInterval(() => {
-      currentMin += 1;
-      setMinute(currentMin);
-      
-      const event = result.events.find(e => e.minute === currentMin);
-      if (event) {
-        setMatchLog(prev => [`${currentMin}' - ${event.description}`, ...prev].slice(0, 5));
-        if (event.type === 'goal') {
-          if (event.team === 'player') {
-            currentGoalsPlayer++;
-            if (event.scorerName) playerScorers.push(event.scorerName);
-          } else {
-            currentGoalsOpponent++;
-            if (event.scorerName) opponentScorers.push(event.scorerName);
-          }
-          setScore({ player: currentGoalsPlayer, opponent: currentGoalsOpponent });
-        }
-      }
-
-      if (tournamentPhase === 'Grupos' && cpuResult) {
-        const cpuEventA = cpuResult.events.find((e: any) => e.minute === currentMin && e.team === 'player' && e.type === 'goal');
-        const cpuEventB = cpuResult.events.find((e: any) => e.minute === currentMin && e.team === 'opponent' && e.type === 'goal');
-        if (cpuEventA || cpuEventB) {
-          if (cpuEventA) currentCpuGoalsA++;
-          if (cpuEventB) currentCpuGoalsB++;
-          setCpuLiveMatch({ goalsA: currentCpuGoalsA, goalsB: currentCpuGoalsB });
-        }
-      }
-
-      const isKnockoutTie = tournamentPhase !== 'Grupos' && currentGoalsPlayer === currentGoalsOpponent;
-      const targetMin = isKnockoutTie && currentMin >= 90 ? 120 : 90;
-
-      if (currentMin >= targetMin) {
-        clearInterval(timer);
-        
-        const newMatchRecord: PastMatch = {
-          id: matchId,
-          phase: tournamentPhase === 'Grupos' ? `Rodada ${currentRound}` : tournamentPhase,
-          opponent,
-          playerGoals: currentGoalsPlayer,
-          opponentGoals: currentGoalsOpponent,
-          playerScorers,
-          opponentScorers
-        };
-        setPastMatches(prev => [...prev, newMatchRecord]);
-
-        if (isKnockoutTie) {
-          setPenaltyPhase(true);
-          setMatchLog(prev => ['Fim da prorrogação! Vamos para os pênaltis!', ...prev]);
-          startPenaltyShootout(opponent, matchId);
-          return;
-        }
-
-        setIsPlaying(false);
-        setMatchEnded(true);
-        setMatchLog(prev => ['Fim de Jogo!', ...prev]);
-
-        if (tournamentPhase === 'Grupos') {
-           setGroupStandings(prev => {
-             const newSt = prev.map(t => ({ ...t }));
-             
-             const updateTeam = (id: string, gf: number, ga: number) => {
-               const t = newSt.find(x => x.id === id)!;
-               t.pld++; t.gf += gf; t.ga += ga; t.gd = t.gf - t.ga;
-               if (gf > ga) { t.win++; t.pts += 3; }
-               else if (gf === ga) { t.draw++; t.pts += 1; }
-               else { t.loss++; }
-             };
-
-             updateTeam('player', currentGoalsPlayer, currentGoalsOpponent);
-             updateTeam(opponent.id, currentGoalsOpponent, currentGoalsPlayer);
-             updateTeam(tournamentPhase === 'Grupos' ? (currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1')) : 'none', currentCpuGoalsA, currentCpuGoalsB);
-             updateTeam(tournamentPhase === 'Grupos' ? (currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2')) : 'none', currentCpuGoalsB, currentCpuGoalsA);
-
-             newSt.sort((a, b) => {
-               if (a.pts !== b.pts) return b.pts - a.pts;
-               if (a.gd !== b.gd) return b.gd - a.gd;
-               return b.gf - a.gf;
-             });
-
-             return newSt;
-           });
-           setCpuLiveMatch(null);
-        } else {
-           if (currentGoalsPlayer < currentGoalsOpponent) {
-             setEliminatedPhase(tournamentPhase);
-             setTournamentPhase('Eliminado');
-             setActiveTab('Card');
-             saveDraftStats(false, currentGoalsPlayer, currentGoalsOpponent);
-           } else if (tournamentPhase === 'Final') {
-             setTournamentPhase('Campeão');
-             setActiveTab('Card');
-             saveDraftStats(true, currentGoalsPlayer, currentGoalsOpponent);
-           }
-        }
-      }
-    }, intervalTime);
-  };
-
-  const nextMatch = () => {
-    if (tournamentPhase === 'Grupos') {
-      if (currentRound < 3) {
-        setCurrentRound(prev => prev + 1);
-        setMatchEnded(false);
-        setMinute(0);
-        setScore({ player: 0, opponent: 0 });
-        setMatchLog([]);
-        setPenaltyPhase(false);
-        setPenaltiesHistory({ player: [], opponent: [] });
-      } else {
-        const playerRank = groupStandings.findIndex(t => t.id === 'player');
-        if (playerRank === 0 || playerRank === 1) {
-          setTournamentPhase('Oitavas');
-        } else {
-          setEliminatedPhase('Fase de Grupos');
-          setTournamentPhase('Eliminado');
-          setActiveTab('Card');
-          saveDraftStats(false, score.player, score.opponent);
-        }
-        setMatchEnded(false);
-        setMinute(0);
-        setScore({ player: 0, opponent: 0 });
-        setMatchLog([]);
-        setPenaltyPhase(false);
-        setPenaltiesHistory({ player: [], opponent: [] });
-      }
-    } else {
-      if (tournamentPhase === 'Oitavas') setTournamentPhase('Quartas');
-      else if (tournamentPhase === 'Quartas') setTournamentPhase('Semi');
-      else if (tournamentPhase === 'Semi') setTournamentPhase('Final');
-      
-      setMatchEnded(false);
-      setMinute(0);
-      setScore({ player: 0, opponent: 0 });
-      setMatchLog([]);
-      setPenaltyPhase(false);
-      setPenaltiesHistory({ player: [], opponent: [] });
-    }
-  };
-
-  if (opponents.length === 0 || groupStandings.length === 0) {
+  if (!copaState) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-        <div className="text-white text-xl animate-pulse">Sorteando Adversários...</div>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="text-white text-xl animate-pulse font-display tracking-widest text-amarelo-gol">Sorteando Grupos...</div>
       </div>
     );
   }
 
-  const currentOpponent = getPlayerOpponentForRound();
+  const { currentRound, totalRounds, matches, teams, groups } = copaState;
+  const currentRoundMatches = matches.filter(m => m.round === (isVisualSimulating ? currentRound : currentRound + 1));
+  const hasPlayerMatch = currentRoundMatches.some(m => m.homeId === PLAYER_ID || m.awayId === PLAYER_ID);
 
-  const renderPenaltyDots = (history: boolean[]) => (
-    <div className="flex justify-center gap-1 mt-2">
-      {history.map((isGoal, i) => (
-        <div key={i} className={`w-3 h-3 rounded-full ${isGoal ? 'bg-verde-grama' : 'bg-vermelho-erro'}`} />
-      ))}
-      {history.length < 5 && Array.from({ length: 5 - history.length }).map((_, i) => (
-        <div key={`empty-${i}`} className="w-3 h-3 rounded-full bg-[var(--border-color)]" />
-      ))}
-    </div>
-  );
-
-  const totalGoalsFor = pastMatches.reduce((acc, m) => acc + m.playerGoals, 0);
-  const totalGoalsAgainst = pastMatches.reduce((acc, m) => acc + m.opponentGoals, 0);
-  const totalWins = pastMatches.filter(m => m.playerGoals > m.opponentGoals || (m.penaltyScore && m.penaltyScore.player > m.penaltyScore.opponent)).length;
-
-  let displayStandings = [...groupStandings];
-  if (tournamentPhase === 'Grupos' && isPlaying && currentOpponent && cpuLiveMatch) {
-    displayStandings = groupStandings.map(t => ({ ...t }));
-    const cpuTeamAId = currentRound === 1 ? 'cpu2' : (currentRound === 2 ? 'cpu1' : 'cpu1');
-    const cpuTeamBId = currentRound === 1 ? 'cpu3' : (currentRound === 2 ? 'cpu3' : 'cpu2');
-
-    const updateLiveTeam = (id: string, gf: number, ga: number) => {
-      const t = displayStandings.find(x => x.id === id)!;
-      t.pld++; t.gf += gf; t.ga += ga; t.gd = t.gf - t.ga;
-      if (gf > ga) { t.win++; t.pts += 3; }
-      else if (gf === ga) { t.draw++; t.pts += 1; }
-      else { t.loss++; }
-    };
-
-    updateLiveTeam('player', score.player, score.opponent);
-    updateLiveTeam(currentOpponent.id, score.opponent, score.player);
-    updateLiveTeam(cpuTeamAId, cpuLiveMatch.goalsA, cpuLiveMatch.goalsB);
-    updateLiveTeam(cpuTeamBId, cpuLiveMatch.goalsB, cpuLiveMatch.goalsA);
-
-    displayStandings.sort((a, b) => {
-      if (a.pts !== b.pts) return b.pts - a.pts;
-      if (a.gd !== b.gd) return b.gd - a.gd;
-      return b.gf - a.gf;
-    });
-  }
-
-  const handleDownloadCard = async () => {
-    if (!cardRef.current) return;
-    try {
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0a0a0a', scale: 2 });
-      const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = `entrosa-campanha-${teamOverall}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Failed to save image', err);
-    }
+  const formatScorers = (scorers: string[]) => {
+    if (!scorers || scorers.length === 0) return '';
+    const counts = scorers.reduce((acc, name) => {
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return Object.entries(counts).map(([name, count]) => count > 1 ? `${name} (${count})` : name).join(', ');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 font-sans">
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl max-w-5xl w-full h-[85vh] flex flex-col overflow-hidden relative text-[var(--text-primary)]">
-        
-        {/* Header Navigation */}
-        <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-background)] overflow-x-auto hide-scrollbar gap-4">
-          <div className="flex gap-2 sm:gap-4 shrink-0">
-            <button onClick={() => setActiveTab('Partida')} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-colors ${activeTab === 'Partida' ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
-              <Play size={18} /> A Partida
-            </button>
-            <button onClick={() => setActiveTab('Campanha')} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-colors ${activeTab === 'Campanha' ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
-              <List size={18} /> A Campanha
-            </button>
-            {(tournamentPhase === 'Eliminado' || tournamentPhase === 'Campeão') && (
-              <button onClick={() => setActiveTab('Card')} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-colors ${activeTab === 'Card' ? 'bg-amarelo-gol text-black' : 'text-amarelo-gol border border-amarelo-gol/30 hover:bg-amarelo-gol/10'}`}>
-                <ImageIcon size={18} /> O Card
-              </button>
-            )}
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0f110f] font-sans text-white h-[100dvh] overflow-hidden">
+      
+      {/* HEADER */}
+      <div className="flex flex-col bg-[#161a16] border-b border-white/10 shrink-0 z-20">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Trophy size={16} className="text-amarelo-gol" />
+            <h2 className="font-display text-sm tracking-widest text-white/80">
+              COPA MULTIPLAYER <span className="text-xs font-mono text-white/40 ml-2">SIMULAÇÃO</span>
+            </h2>
           </div>
-          <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-white shrink-0 ml-4 bg-[var(--bg-surface)] p-2 rounded-full">
-            <X size={24} />
+          <button onClick={onClose} className="p-1.5 text-white/40 hover:text-white transition-colors">
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <div className="flex flex-col px-4 py-3 gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <button 
+                disabled={currentRound >= totalRounds || isVisualSimulating || showSummary}
+                onClick={simulateRound}
+                className="flex items-center gap-2 h-10 px-5 bg-amarelo-gol text-black rounded-xl font-bold text-xs disabled:opacity-50 hover:bg-yellow-400 transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)]"
+              >
+                <FastForward size={16} fill="currentColor" /> SIMULAR RODADA
+              </button>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold font-mono">
+                {currentRound === 0 ? 'Início' : 
+                 currentRound <= 3 ? `Fase de Grupos (Rodada ${currentRound})` :
+                 currentRound === 4 ? 'Oitavas de Final' :
+                 currentRound === 5 ? 'Quartas de Final' :
+                 currentRound === 6 ? 'Semifinal' : 'Final'}
+              </div>
+            </div>
+          </div>
           
-          {/* TAB: PARTIDA */}
-          {activeTab === 'Partida' && (
-            <>
-              <div className="flex-[2] p-4 sm:p-8 flex flex-col overflow-y-auto border-b md:border-b-0 md:border-r border-[var(--border-color)]">
-                {tournamentPhase !== 'Eliminado' && tournamentPhase !== 'Campeão' && currentOpponent ? (
-                  <>
-                    <div className="text-center mb-8">
-                      <div className="text-amarelo-gol font-display text-2xl tracking-wide uppercase">
-                        <Trophy size={20} className="inline mr-2" /> 
-                        {tournamentPhase === 'Grupos' ? `FASE DE GRUPOS - RODADA ${currentRound}` : tournamentPhase}
-                      </div>
-                    </div>
+          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden flex">
+            <div className="h-full bg-amarelo-gol transition-all duration-300" style={{ width: `${(currentRound / totalRounds) * 100}%` }} />
+          </div>
+        </div>
+      </div>
 
-                    <div className="w-full flex flex-row justify-between items-center mb-6 sm:mb-10 gap-2 sm:gap-4">
-                      <div className="text-center flex-1 min-w-0">
-                        <div className="text-[10px] sm:text-sm text-[var(--text-secondary)] font-bold mb-1 tracking-wider">SUA SELEÇÃO</div>
-                        <div className="text-xl sm:text-4xl font-display text-[var(--text-primary)] truncate">Você</div>
-                        <div className="text-[10px] sm:text-sm font-mono mt-1 sm:mt-2 text-verde-grama bg-verde-grama/10 inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-verde-grama/20">OVR {teamOverall}</div>
-                        {penaltyPhase && renderPenaltyDots(penaltiesHistory.player)}
-                      </div>
-                      
-                      <div className="flex flex-col items-center shrink-0">
-                        <div className="text-4xl sm:text-6xl font-display text-[var(--text-primary)] px-4 sm:px-6 bg-[var(--bg-background)] rounded-xl border border-[var(--border-color)] py-2 sm:py-3 shadow-inner">
-                          {score.player} - {score.opponent}
-                        </div>
-                        {penaltyPhase && (
-                          <div className="text-lg sm:text-2xl font-bold text-amarelo-gol mt-2 sm:mt-3 bg-amarelo-gol/10 px-2 sm:px-4 py-1 rounded-lg border border-amarelo-gol/30">
-                            ({penaltyScore.player}) - ({penaltyScore.opponent})
-                          </div>
-                        )}
-                      </div>
+      {/* CONTENT AREA */}
+      <div className="flex-1 overflow-y-auto relative pb-16 custom-scrollbar">
+        
+        {/* TABELA */}
+        {activeTab === 'TABELA' && (
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(groups).map(([groupName, teamIds]) => {
+              const groupTeams = teamIds.map(id => teams.find(t => t.id === id)!);
+              const standings = getStandings(groupTeams);
+              
+              return (
+                <div key={groupName} className="bg-black/40 border border-white/10 rounded-xl overflow-hidden shadow-xl">
+                  <div className="bg-white/5 px-4 py-2 border-b border-white/5 flex items-center gap-2">
+                    <span className="text-amarelo-gol font-display text-lg">GRUPO {groupName}</span>
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-white/5 text-white/40">
+                        <th className="py-2 px-3 text-left w-6">#</th>
+                        <th className="py-2 px-2 text-left">Time</th>
+                        <th className="py-2 px-2 text-center w-8 font-bold text-white/70">P</th>
+                        <th className="py-2 px-2 text-center w-8">J</th>
+                        <th className="py-2 px-2 text-center w-8">V</th>
+                        <th className="py-2 px-2 text-center w-8">E</th>
+                        <th className="py-2 px-2 text-center w-8">D</th>
+                        <th className="py-2 px-2 text-center w-8">SG</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {standings.map((t, i) => (
+                        <tr key={t.id} className={`border-b border-white/5 last:border-0 ${t.id === PLAYER_ID ? 'bg-amarelo-gol/10 text-amarelo-gol font-bold' : 'text-white/80'} ${i < 2 ? 'border-l-2 border-l-verde-grama' : 'border-l-2 border-l-transparent'}`}>
+                          <td className="py-2.5 px-3 text-white/40">{i + 1}</td>
+                          <td className="py-2.5 px-2 font-medium truncate max-w-[120px]">{t.name}</td>
+                          <td className="py-2.5 px-2 text-center font-bold text-white">{t.stats.pts}</td>
+                          <td className="py-2.5 px-2 text-center opacity-70">{t.stats.v + t.stats.e + t.stats.d}</td>
+                          <td className="py-2.5 px-2 text-center opacity-70">{t.stats.v}</td>
+                          <td className="py-2.5 px-2 text-center opacity-70">{t.stats.e}</td>
+                          <td className="py-2.5 px-2 text-center opacity-70">{t.stats.d}</td>
+                          <td className="py-2.5 px-2 text-center opacity-70">{t.stats.sg}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-                      <div className="text-center flex-1 min-w-0">
-                        <div className="text-[10px] sm:text-sm text-[var(--text-secondary)] font-bold mb-1 tracking-wider">{currentOpponent.year}</div>
-                        <div className="text-xl sm:text-4xl font-display text-[var(--text-primary)] uppercase truncate">{currentOpponent.name}</div>
-                        <div className="text-[10px] sm:text-sm font-mono mt-1 sm:mt-2 text-vermelho-erro bg-vermelho-erro/10 inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-vermelho-erro/20">OVR {currentOpponent.ovr}</div>
-                        {penaltyPhase && renderPenaltyDots(penaltiesHistory.opponent)}
-                      </div>
-                    </div>
+        {/* PARTIDAS */}
+        {activeTab === 'PARTIDAS' && (
+          <div className="p-4 flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
+              <Swords size={14} className="text-amarelo-gol" /> 
+              {isVisualSimulating ? `Partidas em Andamento` : `Próximos Confrontos`}
+            </h3>
+            
+            <div className="flex flex-col gap-4 max-w-2xl mx-auto w-full">
+              {currentRoundMatches.map((m, idx) => {
+                const home = teams.find(t => t.id === m.homeId)!;
+                const away = teams.find(t => t.id === m.awayId)!;
+                
+                const isPlayerMatch = (home.id === PLAYER_ID || away.id === PLAYER_ID);
+                const isLive = isVisualSimulating && isPlayerMatch;
 
-                    <div className="text-center mb-2 mt-auto">
-                      {penaltyPhase ? (
-                        <div className="text-4xl sm:text-7xl text-amarelo-gol animate-pulse font-display tracking-widest mb-4">
-                          PÊNALTIS
-                        </div>
-                      ) : (
-                        <div className="text-5xl sm:text-7xl font-mono mb-4 text-[var(--text-secondary)]">
-                          {minute}'
-                        </div>
-                      )}
-                      
-                      {!isPlaying && !matchEnded && (
-                        <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
-                          <div className="flex justify-center gap-2 mb-2 bg-[var(--bg-background)] p-1 rounded-full border border-[var(--border-color)]">
-                            <button onClick={() => setSpeed('normal')} className={`flex-1 py-2 text-sm font-bold rounded-full transition-colors ${speed === 'normal' ? 'bg-[var(--text-primary)] text-[var(--bg-surface)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>Normal</button>
-                            <button onClick={() => setSpeed('rápida')} className={`flex-1 py-2 text-sm font-bold rounded-full flex items-center justify-center gap-1 transition-colors ${speed === 'rápida' ? 'bg-white text-black' : 'text-[var(--text-secondary)] hover:text-white'}`}><FastForward size={14} /> Rápida</button>
-                          </div>
-                          <button onClick={startMatch} className="w-full py-5 bg-verde-grama text-black font-bold text-xl rounded-xl hover:bg-green-500 transition-colors flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                            <Play size={24} /> INICIAR PARTIDA
-                          </button>
-                        </div>
-                      )}
+                let displayHomeGoals = m.homeGoals;
+                let displayAwayGoals = m.awayGoals;
+                let displayHomeScorers = m.homeScorers;
+                let displayAwayScorers = m.awayScorers;
 
-                      {matchEnded && !isPlaying && (
-                        <div className="flex flex-col gap-4 w-full max-w-sm mx-auto text-center mt-8">
-                          <div className={`text-3xl font-display mb-4 ${score.player > score.opponent || penaltyScore.player > penaltyScore.opponent ? 'text-verde-grama' : score.player < score.opponent || penaltyScore.player < penaltyScore.opponent ? 'text-vermelho-erro' : 'text-[var(--text-primary)]'}`}>
-                            {score.player > score.opponent || penaltyScore.player > penaltyScore.opponent ? 'VITÓRIA!' : score.player < score.opponent || penaltyScore.player < penaltyScore.opponent ? 'DERROTA...' : 'EMPATE'}
-                          </div>
-                          <button onClick={nextMatch} className="w-full py-4 bg-amarelo-gol text-black font-bold text-xl rounded-xl hover:bg-yellow-400 transition-colors shadow-[0_0_20px_rgba(234,179,8,0.2)]">
-                            AVANÇAR PARA A PRÓXIMA FASE
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                if (isLive && m.events) {
+                  const liveEvents = m.events.filter((e: any) => e.minute <= matchMinute);
+                  displayHomeGoals = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'player').length;
+                  displayAwayGoals = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'opponent').length;
+                  displayHomeScorers = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'player').map((e:any) => e.scorerName!);
+                  displayAwayScorers = liveEvents.filter((e: any) => e.type === 'goal' && e.team === 'opponent').map((e:any) => e.scorerName!);
+                }
 
-                    {/* TABELA DE CLASSIFICAÇÃO (Apenas na Fase de Grupos) */}
-                    {tournamentPhase === 'Grupos' && (
-                      <div className="mt-2 max-w-3xl mx-auto w-full bg-[var(--bg-background)] p-3 rounded-xl border border-[var(--border-color)]">
-                        <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-2">
-                          <List size={14} className="text-amarelo-gol" /> Classificação do Grupo
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex text-[9px] font-mono text-[var(--text-secondary)] px-3 uppercase pb-1 border-b border-[var(--border-color)]">
-                            <div className="w-6">#</div>
-                            <div className="flex-1">Seleção</div>
-                            <div className="w-10 text-center font-bold text-white">PTS</div>
-                            <div className="w-8 text-center hidden sm:block">J</div>
-                            <div className="w-8 text-center hidden sm:block">V</div>
-                            <div className="w-8 text-center hidden sm:block">E</div>
-                            <div className="w-8 text-center hidden sm:block">D</div>
-                            <div className="w-10 text-center">SG</div>
-                          </div>
-                          {displayStandings.map((team, idx) => (
-                            <motion.div 
-                              layout
-                              transition={{ type: "spring", stiffness: 120, damping: 15, mass: 0.8 }}
-                              key={team.id} 
-                              className={`flex items-center text-xs px-3 py-2 rounded-lg border transition-all ${team.isPlayer ? 'bg-amarelo-gol/10 border-amarelo-gol/30 shadow-[inset_0_0_10px_rgba(234,179,8,0.1)]' : 'bg-[var(--bg-surface)] border-[var(--border-color)]'} ${idx < 2 ? 'border-l-4 border-l-verde-grama' : 'border-l-4 border-l-vermelho-erro/50 opacity-80'}`}
-                            >
-                              <div className="w-5 font-mono text-[var(--text-secondary)] font-bold">{idx + 1}</div>
-                              <div className="flex-1 font-bold flex items-center gap-2 truncate text-[var(--text-primary)] uppercase">
-                                {team.name}
-                                {team.isPlayer && <span className="text-[8px] bg-amarelo-gol text-black px-1 py-0.5 rounded font-mono uppercase tracking-widest hidden sm:inline-block">Você</span>}
-                              </div>
-                              <div className="w-8 text-center font-display text-lg text-amarelo-gol">{team.pts}</div>
-                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.pld}</div>
-                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.win}</div>
-                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.draw}</div>
-                              <div className="w-6 text-center font-mono text-[var(--text-secondary)] hidden sm:block">{team.loss}</div>
-                              <div className="w-8 text-center font-mono font-bold text-[var(--text-primary)]">{team.gd > 0 ? `+${team.gd}` : team.gd}</div>
-                            </motion.div>
-                          ))}
-                        </div>
+                return (
+                  <div key={idx} className={`p-4 rounded-xl border flex flex-col gap-3 bg-black/40 opacity-70 hover:opacity-100 transition-opacity ${isLive ? 'border-amarelo-gol shadow-[0_0_15px_rgba(234,179,8,0.2)]' : isPlayerMatch ? 'border-white/30 bg-white/5' : 'border-white/10'}`}>
+                    {isLive && (
+                      <div className="text-center w-full mb-[-10px]">
+                        <span className="text-[10px] text-amarelo-gol animate-pulse font-bold tracking-widest inline-flex items-center gap-1.5 bg-black/80 px-2 py-0.5 rounded-full border border-amarelo-gol/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amarelo-gol"></span>
+                          {matchMinute}'
+                        </span>
                       </div>
                     )}
-                  </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center">
-                    <p className="text-[var(--text-secondary)] text-xl">Nenhuma partida em andamento.</p>
-                    <button onClick={() => setActiveTab('Card')} className="mt-6 px-8 py-3 bg-amarelo-gol text-black font-bold rounded-xl hover:bg-yellow-400">Ver Resumo da Copa</button>
-                  </div>
-                )}
-              </div>
-
-              {/* Match Logs Sidebar */}
-              <div className="flex-1 md:flex-none md:w-80 lg:w-96 bg-[var(--bg-background)] p-4 sm:p-6 flex flex-col border-l border-[var(--border-color)] overflow-y-auto">
-                <h3 className="font-bold text-[var(--text-secondary)] mb-6 uppercase text-sm border-b border-[var(--border-color)] pb-3 tracking-widest">Lances da Partida</h3>
-                <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-2 custom-scrollbar">
-                  {matchLog.map((log, i) => (
-                    <div key={i} className={`p-4 rounded-xl text-sm font-medium leading-relaxed ${log.includes('GOL!') ? 'bg-amarelo-gol text-black shadow-[0_0_15px_rgba(234,179,8,0.2)]' : log.includes('DEFESA') || log.includes('TRAVE') ? 'bg-vermelho-erro/20 text-red-500 border border-vermelho-erro/30' : 'bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-color)]'}`}>
-                      {log}
-                    </div>
-                  ))}
-                  {matchLog.length === 0 && !isPlaying && (
-                    <div className="text-center text-[var(--text-secondary)] text-sm mt-10">Aguardando início do jogo...</div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-           {/* TAB: CAMPANHA (Histórico) */}
-          {activeTab === 'Campanha' && (
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[var(--bg-background)]">
-              <h2 className="text-2xl sm:text-3xl font-display text-[var(--text-primary)] mb-6 sm:mb-8">Sua Campanha</h2>
-              
-              {pastMatches.length === 0 ? (
-                <p className="text-[var(--text-secondary)]">Nenhuma partida disputada ainda.</p>
-              ) : (
-                <div className="flex flex-col gap-4 sm:gap-6">
-                  {pastMatches.map((match) => {
-                    const isWin = match.playerGoals > match.opponentGoals || (match.penaltyScore && match.penaltyScore.player > match.penaltyScore.opponent);
-                    const isLoss = match.playerGoals < match.opponentGoals || (match.penaltyScore && match.penaltyScore.player < match.penaltyScore.opponent);
-                    
-                    return (
-                      <div key={match.id} className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-4 sm:p-6">
-                        <div className="flex justify-between items-center mb-4 text-xs sm:text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                          <span>{match.phase}</span>
-                          {isWin && <span className="text-verde-grama">VITÓRIA ✓</span>}
-                          {isLoss && <span className="text-vermelho-erro">DERROTA ✕</span>}
-                          {!isWin && !isLoss && <span>EMPATE -</span>}
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 flex flex-col items-end">
+                        <span className={`text-xs font-bold uppercase truncate ${home.id === PLAYER_ID ? 'text-amarelo-gol' : 'text-white/70'}`}>{home.name}</span>
+                        <span className="text-[9px] text-white/40 font-mono">'{String(home.year).slice(-2)} OVR {home.ovr}</span>
+                      </div>
+                      
+                      <div className="px-4">
+                        <div className={`bg-black/80 px-4 py-2 rounded-lg font-display text-xl flex items-center gap-3 border min-w-[90px] justify-center shadow-inner ${isLive ? 'border-amarelo-gol/50' : 'border-white/10'}`}>
+                          {m.simulated || isLive ? (
+                            <>
+                              <span className={displayHomeGoals! > displayAwayGoals! ? 'text-amarelo-gol' : 'text-white'}>{displayHomeGoals ?? '-'}</span>
+                              <span className={`${isLive ? 'text-amarelo-gol/50 animate-pulse' : 'text-white/20'} text-sm`}>X</span>
+                              <span className={displayAwayGoals! > displayHomeGoals! ? 'text-amarelo-gol' : 'text-white'}>{displayAwayGoals ?? '-'}</span>
+                            </>
+                          ) : (
+                            <span className="text-white/30 text-sm">vs</span>
+                          )}
                         </div>
-                        
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex-1 text-right text-lg sm:text-xl font-bold text-[var(--text-primary)] truncate">Você</div>
-                          <div className="px-2 sm:px-8 flex flex-col items-center shrink-0">
-                            <div className="text-2xl sm:text-4xl font-display text-[var(--text-primary)] bg-[var(--bg-background)] px-3 sm:px-4 py-1 sm:py-2 rounded-lg border border-[var(--border-color)] tracking-widest">
-                              {match.playerGoals} - {match.opponentGoals}
-                            </div>
-                            {match.penaltyScore && (
-                              <div className="text-amarelo-gol text-xs sm:text-sm font-bold mt-2">
-                                PÊN: ({match.penaltyScore.player}) - ({match.penaltyScore.opponent})
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 text-left text-xl font-bold uppercase">{match.opponent.name} '{match.opponent.year}</div>
-                        </div>
-
-                        {/* Scorers */}
-                        <div className="mt-4 flex justify-between text-xs text-[var(--text-secondary)]">
-                          <div className="flex-1 text-right pr-6">
-                            {match.playerScorers.length > 0 ? `⚽ ${match.playerScorers.join(', ')}` : ''}
-                          </div>
-                          <div className="w-32"></div>
-                          <div className="flex-1 text-left pl-6">
-                            {match.opponentScorers.length > 0 ? `⚽ ${match.opponentScorers.join(', ')}` : ''}
-                          </div>
-                        </div>
-
-                        {/* Penalty Details */}
-                        {match.penaltyDetails && (
-                          <div className="mt-6 pt-4 border-t border-[var(--border-color)] flex justify-between">
-                            <div className="flex-1 flex flex-col gap-2 items-end pr-6">
-                              {match.penaltyDetails.player.map((p, i) => (
-                                <div key={i} className="flex items-center gap-2 text-sm">
-                                  <span className="font-medium text-[var(--text-primary)]">{p.name}</span>
-                                  <span className={`w-3 h-3 rounded-full ${p.isGoal ? 'bg-verde-grama' : 'bg-vermelho-erro'}`}></span>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="w-px bg-[var(--border-color)]"></div>
-                            <div className="flex-1 flex flex-col gap-2 items-start pl-6">
-                              {match.penaltyDetails.opponent.map((p, i) => (
-                                <div key={i} className="flex items-center gap-2 text-sm">
-                                  <span className={`w-3 h-3 rounded-full ${p.isGoal ? 'bg-verde-grama' : 'bg-vermelho-erro'}`}></span>
-                                  <span className="font-medium text-[var(--text-primary)]">{p.name}</span>
-                                </div>
-                              ))}
-                            </div>
+                        {(m.simulated || isLive) && m.penalties && (matchMinute >= 120 || !isLive) && (
+                          <div className="text-[9px] text-center mt-1 text-white/50">
+                            Pên: {m.penalties.playerScore}x{m.penalties.opponentScore}
                           </div>
                         )}
                       </div>
-                    );
-                  })}
+
+                      <div className="flex-1 flex flex-col items-start">
+                        <span className={`text-xs font-bold uppercase truncate ${away.id === PLAYER_ID ? 'text-amarelo-gol' : 'text-white/70'}`}>{away.name}</span>
+                        <span className="text-[9px] text-white/40 font-mono">'{String(away.year).slice(-2)} OVR {away.ovr}</span>
+                      </div>
+                    </div>
+                    
+                    {(m.simulated || isLive) && ((displayHomeScorers?.length || 0) + (displayAwayScorers?.length || 0) > 0) && (
+                      <>
+                        <div className="h-px bg-white/5 w-full"></div>
+                        <div className="flex justify-between text-[9px] text-white/50 uppercase tracking-wider px-2">
+                          <div className="flex-1 text-right truncate text-verde-grama/80">{formatScorers(displayHomeScorers || [])}</div>
+                          <div className="w-16"></div>
+                          <div className="flex-1 text-left truncate text-verde-grama/80">{formatScorers(displayAwayScorers || [])}</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              {currentRoundMatches.length === 0 && (
+                <div className="p-8 text-center text-white/40 text-sm">
+                  Nenhuma partida nesta fase. Simule para avançar!
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* TAB: O CARD FINAL */}
-          {activeTab === 'Card' && (
-            <div className="flex-1 overflow-y-auto bg-[var(--bg-background)]">
-              <div className="p-4 sm:p-6 flex flex-col items-center justify-center min-h-full">
+        {/* MATA-MATA */}
+        {activeTab === 'MATA-MATA' && (
+          <div className="p-4 flex flex-col gap-6">
+            {[4, 5, 6, 7].map(rd => {
+              const phaseMatches = matches.filter(m => m.round === rd);
+              if (phaseMatches.length === 0) return null;
               
-                <div 
-                  ref={cardRef}
-                  className="w-full max-w-4xl border border-amarelo-gol/50 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(234,179,8,0.15)] bg-[#0a0f0a]"
-                >
-                  {/* Layout Responsivo: Vertical no mobile, Horizontal no PC */}
-                  <div className="flex flex-col md:flex-row">
-                    
-                    {/* Lado Esquerdo - Info */}
-                    <div className="w-full md:w-[320px] shrink-0 flex flex-col justify-between bg-gradient-to-b from-[#0a0f0a] to-[#111] border-b md:border-b-0 md:border-r border-amarelo-gol/20 p-6 md:p-8 text-center md:text-left">
+              const title = rd === 4 ? 'Oitavas' : rd === 5 ? 'Quartas' : rd === 6 ? 'Semifinal' : 'Final';
+              
+              return (
+                <div key={rd} className="bg-white/[0.02] border border-white/10 rounded-xl p-4">
+                  <h4 className="text-amarelo-gol font-display text-sm mb-4">{title}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {phaseMatches.map((m, idx) => {
+                      const home = teams.find(t => t.id === m.homeId)!;
+                      const away = teams.find(t => t.id === m.awayId)!;
+                      const isPl = home.id === PLAYER_ID || away.id === PLAYER_ID;
                       
-                      <div>
-                        <div className="mb-6 flex flex-col items-center md:items-start gap-2">
-                          <img src="/logo.png" alt="ENTROSA" className="w-32 md:w-24 h-auto drop-shadow-[0_0_10px_rgba(234,179,8,0.3)]" />
-                          <div className="text-amarelo-gol/60 font-mono text-xs font-bold tracking-[0.3em] uppercase">COPA ENTROSA</div>
+                      return (
+                        <div key={idx} className={`p-3 rounded-lg border flex items-center justify-between text-xs ${isPl ? 'bg-amarelo-gol/5 border-amarelo-gol/30' : 'bg-black/30 border-white/5'}`}>
+                          <span className={`w-1/3 truncate text-right ${home.id === PLAYER_ID ? 'text-amarelo-gol font-bold' : 'text-white/70'}`}>{home.name}</span>
+                          <div className="w-1/3 flex justify-center items-center gap-2">
+                            {m.simulated ? (
+                              <span className="font-bold bg-black px-2 py-1 rounded text-white flex gap-1 items-center">
+                                {m.homeGoals} x {m.awayGoals}
+                                {m.penalties && <span className="text-[8px] text-amarelo-gol ml-1">P</span>}
+                              </span>
+                            ) : (
+                              <span className="text-white/30">vs</span>
+                            )}
+                          </div>
+                          <span className={`w-1/3 truncate text-left ${away.id === PLAYER_ID ? 'text-amarelo-gol font-bold' : 'text-white/70'}`}>{away.name}</span>
                         </div>
-                        
-                        <div className={`text-4xl font-display mb-1 tracking-wide ${tournamentPhase === 'Campeão' ? 'text-amarelo-gol drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'text-vermelho-erro drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]'}`}>
-                          {tournamentPhase === 'Campeão' ? 'CAMPEÃO!' : 'ELIMINADO'}
-                        </div>
-                        <div className="text-xs text-white/40 font-bold tracking-[0.2em] uppercase mb-8">
-                          {tournamentPhase === 'Campeão' ? 'A GLÓRIA ETERNA' : `CAIU NA FASE: ${eliminatedPhase}`}
-                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {matches.filter(m => m.round >= 4).length === 0 && (
+               <div className="p-8 text-center text-white/40 text-sm">
+                 As chaves do mata-mata ainda não foram definidas.
+               </div>
+            )}
+          </div>
+        )}
 
-                        <div className="space-y-4">
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Overall</span>
-                            <span className="text-3xl font-display text-amarelo-gol">{teamOverall}</span>
-                          </div>
-                          <div className="h-px bg-white/10"></div>
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Gols Pró</span>
-                            <span className="text-3xl font-display text-verde-grama">{totalGoalsFor}</span>
-                          </div>
-                          <div className="h-px bg-white/10"></div>
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Sofridos</span>
-                            <span className="text-3xl font-display text-vermelho-erro">{totalGoalsAgainst}</span>
-                          </div>
-                          <div className="h-px bg-white/10"></div>
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs text-white/40 font-bold tracking-widest uppercase">Vitórias</span>
-                            <span className="text-3xl font-display text-white">{totalWins}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-8">
-                        <span className="text-xs text-white/30 font-mono tracking-widest">entrosa.app</span>
-                      </div>
+        {/* ELENCO */}
+        {activeTab === 'ELENCO' && (
+          <div className="p-4 flex flex-col items-center">
+            <div className="w-full max-w-sm mb-6">
+              <div className="bg-gradient-to-b from-black to-[#1a1f1a] rounded-xl border border-white/10 p-4 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amarelo-gol to-verde-grama"></div>
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="font-display text-xl text-white drop-shadow-md">{customTeamName || 'Seu Time'}</h3>
+                    <p className="text-xs text-white/50 uppercase tracking-widest">OVR {teamOverall}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-black/50 border border-white/20 rounded-full flex items-center justify-center shadow-inner">
+                    <Trophy size={20} className="text-amarelo-gol" />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                  {playerNamesArray.map((name, i) => (
+                    <div key={i} className="flex justify-between items-center text-sm py-1.5 border-b border-white/5 last:border-0">
+                      <span className="text-white/40 font-mono text-[10px] w-8">{playerPositionsArray[i] || 'JOG'}</span>
+                      <span className="text-white/90 font-medium flex-1 text-right">{name}</span>
                     </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-                    {/* Lado Direito - Escalação */}
-                    <div className="flex-1 bg-[#124d29] relative p-4 sm:p-5 min-h-[400px] md:min-h-auto flex flex-col justify-center">
-                      {/* Linhas do campo */}
-                      <div className="absolute inset-0 pointer-events-none opacity-10">
-                        <div className="absolute inset-3 border-2 border-white"></div>
-                        <div className="absolute top-1/2 left-3 right-3 h-px bg-white"></div>
-                        <div className="absolute w-20 h-20 border-2 border-white rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-                      </div>
-                      
-                      <div className="relative z-10 flex flex-col gap-2 sm:gap-3 h-full justify-between">
-                        {nodes2D.map((row, ri) => (
-                          <div key={ri} className="flex flex-row justify-center gap-1.5 sm:gap-3">
-                            {row.map((node, ci) => (
-                              <div key={`${ri}-${ci}`} className="relative flex flex-col items-center bg-[#0d3d1f] border border-[#1D9E75]/50 rounded-lg px-2 sm:px-4 py-1 sm:py-1.5 min-w-[70px] sm:min-w-[110px] shadow-lg">
-                                {node.playerOvr && (
-                                  <span className="absolute -top-1.5 -right-1.5 z-20 bg-amarelo-gol text-black text-[9px] sm:text-[10px] font-mono font-bold px-1 sm:px-1.5 py-0.5 rounded shadow-md">{node.playerOvr}</span>
-                                )}
-                                <span className="text-[9px] sm:text-[10px] font-mono text-white/50 uppercase tracking-wider mb-0.5 z-10 absolute top-0.5 left-1">{node.position}</span>
-                                
-                                {node.faceUrl ? (
-                                  <img src={`/api/image?url=${encodeURIComponent(node.faceUrl)}`} alt={node.playerName} className="w-10 h-10 sm:w-12 sm:h-12 object-contain mt-1 drop-shadow-md z-10" />
-                                ) : (
-                                  <div className="w-8 h-8 sm:w-10 sm:h-10 mt-1 rounded-full bg-verde-grama flex items-center justify-center text-white font-display text-base border border-amarelo-gol/50 z-10">
-                                    {node.playerName?.charAt(0) || '—'}
-                                  </div>
-                                )}
-                                
-                                <span className="text-xs sm:text-sm mt-1 font-display text-white uppercase leading-tight truncate w-full max-w-[65px] sm:max-w-[100px] text-center font-bold z-20">{node.playerName || '—'}</span>
-                                {node.playerCountry && (
-                                  <span className="mt-0.5 text-[8px] sm:text-[9px] font-bold text-white/70 bg-white/10 px-1.5 sm:px-2 py-0.5 rounded-sm uppercase tracking-wide z-20">{node.playerCountry.substring(0,3)}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Watermark in the bottom right corner of the field */}
-                      <div className="absolute bottom-3 right-4 opacity-40 pointer-events-none flex flex-col items-end gap-1">
-                        <img src="/logo.png" alt="ENTROSA" className="h-5 w-auto grayscale" />
-                        <span className="font-mono text-[8px] text-white tracking-widest font-bold">entrosa.app</span>
-                      </div>
+      </div>
+
+      {/* BOTTOM NAVIGATION */}
+      <div className="bg-[#121412] border-t border-white/10 shrink-0 pb-safe">
+        <div className="flex items-center justify-between px-2 sm:px-6 py-2">
+          
+          <button onClick={() => setActiveTab('TABELA')} className={`flex flex-col items-center gap-1 p-2 flex-1 rounded-lg transition-colors ${activeTab === 'TABELA' ? 'text-amarelo-gol' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}>
+            <Trophy size={20} className={activeTab === 'TABELA' ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]' : ''} />
+            <span className="text-[8px] font-bold uppercase tracking-widest">Grupos</span>
+          </button>
+          
+          <button onClick={() => setActiveTab('MATA-MATA')} className={`flex flex-col items-center gap-1 p-2 flex-1 rounded-lg transition-colors ${activeTab === 'MATA-MATA' ? 'text-amarelo-gol' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}>
+            <Swords size={20} className={activeTab === 'MATA-MATA' ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]' : ''} />
+            <span className="text-[8px] font-bold uppercase tracking-widest">Chaves</span>
+          </button>
+
+          <button onClick={() => setActiveTab('PARTIDAS')} className={`flex flex-col items-center gap-1 p-2 flex-1 rounded-lg transition-colors ${activeTab === 'PARTIDAS' ? 'text-amarelo-gol' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}>
+            <Play size={20} className={activeTab === 'PARTIDAS' ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]' : ''} />
+            <span className="text-[8px] font-bold uppercase tracking-widest">Jogos</span>
+          </button>
+
+          <button onClick={() => setActiveTab('ELENCO')} className={`flex flex-col items-center gap-1 p-2 flex-1 rounded-lg transition-colors ${activeTab === 'ELENCO' ? 'text-amarelo-gol' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}>
+            <Users size={20} className={activeTab === 'ELENCO' ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]' : ''} />
+            <span className="text-[8px] font-bold uppercase tracking-widest">Elenco</span>
+          </button>
+
+        </div>
+      </div>
+
+      {/* MODAL DE FIM DE TORNEIO */}
+      <AnimatePresence>
+        {showSummary && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-start p-4 sm:p-8 py-12 overflow-y-auto custom-scrollbar"
+          >
+            <div className="w-full max-w-2xl relative flex flex-col items-center mt-8">
+              <button onClick={onClose} className="fixed top-4 right-4 sm:top-8 sm:right-8 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-[100] shadow-lg backdrop-blur-sm cursor-pointer">
+                <X size={24} />
+              </button>
+              
+              <div 
+                ref={cardRef}
+                className="w-full bg-[#0a0f0a] border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] relative flex flex-col"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#121612] via-[#0a0f0a] to-[#0a0f0a] pointer-events-none"></div>
+                <div className="absolute top-0 right-0 p-20 opacity-[0.03] pointer-events-none"><Trophy size={400} /></div>
+                
+                <div className="relative z-10 p-6 sm:p-10 flex flex-col items-center text-center border-b border-white/5">
+                  <div className="text-amarelo-gol font-mono text-[10px] font-bold tracking-[0.3em] uppercase mb-2">FIM DE TORNEIO</div>
+                  <h2 className="text-3xl sm:text-4xl font-display text-white mb-2">{isPlayerChampion(copaState) ? 'CAMPEÃO!' : 'Fim de Jogo!'}</h2>
+                  <p className="text-xs sm:text-sm text-white/50 mb-6">{isPlayerEliminated(copaState) ? 'Você foi eliminado do torneio.' : 'O torneio chegou ao fim.'}</p>
+                  
+                  <div className="flex flex-wrap justify-center gap-4">
+                    <div className="flex items-center gap-2 px-5 py-2.5 bg-amarelo-gol/10 border border-amarelo-gol/30 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+                      <Trophy size={16} className="text-amarelo-gol" />
+                      <span className="text-xs sm:text-sm font-bold text-amarelo-gol uppercase">Campanha Finalizada</span>
                     </div>
-
                   </div>
                 </div>
 
-                <button 
-                  onClick={handleDownloadCard}
-                  className="mt-6 mb-4 px-8 py-3 bg-amarelo-gol text-black font-bold rounded-xl hover:bg-yellow-400 transition-colors shadow-[0_0_20px_rgba(234,179,8,0.3)] flex items-center gap-3"
-                >
-                  <Download size={20} />
-                  SALVAR IMAGEM
-                </button>
+                <div className="relative z-10 p-6 bg-black/40 flex justify-center gap-4">
+                   <button onClick={onClose} className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-xl transition-colors">Fechar</button>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
