@@ -1,4 +1,4 @@
-import { simulateMatch, MatchResult } from './simulation';
+import { simulateMatch, MatchResult, PenaltyShootout } from './simulation';
 
 export interface LeagueTeam {
   id: string;
@@ -7,6 +7,7 @@ export interface LeagueTeam {
   ovr: number;
   playerNames: string[];
   positionCodes: string[];
+  isRealPlayer?: boolean;
   stats: {
     pts: number;
     v: number;

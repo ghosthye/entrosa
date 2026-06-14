@@ -402,9 +402,5 @@ export function getPlayerOverall(playerId: string, league: 'worldcup' | 'brasile
   
   if (overall > 99) overall = 99;
   
-  if (league === 'brasileirao') {
-    return Math.floor(overall * 0.90);
-  }
-  
   return Math.floor(overall);
 }

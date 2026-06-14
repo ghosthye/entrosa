@@ -319,6 +319,8 @@ export default function ArenaOnlinePage() {
       
       const newQueue = [...liveMatchQueue];
       let lastProcessed = processedRound;
+      
+      const isFastPvp = room?.settings?.fastPvp === true;
 
       for (let r = startRound; r <= currentRound; r++) {
         const roundMatches = matches.filter(m => m.round === r);
@@ -330,7 +332,8 @@ export default function ArenaOnlinePage() {
           return (home?.id === localPlayerId || away?.id === localPlayerId) && homeIsReal && awayIsReal;
         });
 
-        if (hasPvP) {
+        // Se o modo Fast Forward estiver ativo, pula a simulação visual
+        if (hasPvP && !isFastPvp) {
           if (!newQueue.includes(r)) newQueue.push(r);
         }
         lastProcessed = r;
@@ -339,7 +342,7 @@ export default function ArenaOnlinePage() {
       setLiveMatchQueue(newQueue);
       setProcessedRound(lastProcessed);
     }
-  }, [currentRound, processedRound, matches, teams, players, localPlayerId, liveMatchQueue]);
+  }, [currentRound, processedRound, matches, teams, players, localPlayerId, liveMatchQueue, room?.settings?.fastPvp]);
 
   // Consome a fila de PvP
   useEffect(() => {
@@ -370,13 +373,16 @@ export default function ArenaOnlinePage() {
     }
   }, [isVisualSimulating]);
 
+  const hasShownSummaryRef = useRef(false);
+
   // Tela Final
   useEffect(() => {
     const totalRounds = room?.competition_state?.totalRounds || 38;
-    if (totalRounds > 0 && currentRound === totalRounds && processedRound === totalRounds && liveMatchQueue.length === 0 && !isVisualSimulating && matchMinute === 90 && !showSummary) {
+    if (totalRounds > 0 && currentRound === totalRounds && processedRound === totalRounds && liveMatchQueue.length === 0 && !isVisualSimulating && matchMinute === 90 && !hasShownSummaryRef.current) {
+      hasShownSummaryRef.current = true;
       setShowSummary(true);
     }
-  }, [currentRound, processedRound, liveMatchQueue.length, isVisualSimulating, matchMinute, showSummary, room?.competition_state?.totalRounds]);
+  }, [currentRound, processedRound, liveMatchQueue.length, isVisualSimulating, matchMinute, room?.competition_state?.totalRounds]);
 
   if (loading || !room) {
     return (

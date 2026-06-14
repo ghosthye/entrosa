@@ -23,6 +23,7 @@ export default function DraftOnlinePage() {
   const [skips, setSkips] = useState('3');
   const [difficulty, setDifficulty] = useState('hard');
   const [twoLegs, setTwoLegs] = useState(false);
+  const [fastPvp, setFastPvp] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   // Join State
@@ -47,7 +48,7 @@ export default function DraftOnlinePage() {
         body: JSON.stringify({
           mode,
           format,
-          settings: { skips: parseInt(skips), twoLegs, difficulty },
+          settings: { skips: parseInt(skips), twoLegs, difficulty, fastPvp },
           hostName: name.trim(),
           teamName: teamName.trim(),
           hostId: user?.id || null
@@ -206,6 +207,14 @@ export default function DraftOnlinePage() {
                   </button>
                 </div>
               )}
+              
+              <div>
+                <label className="block text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Simulação PvP</label>
+                <select value={fastPvp ? "true" : "false"} onChange={e => setFastPvp(e.target.value === "true")} className="w-full bg-[var(--bg-background)] border-2 border-[var(--border-color)] rounded-xl px-4 py-3 font-bold focus:outline-none focus:border-blue-500 transition-colors">
+                  <option value="false">Realista (Timer 30s)</option>
+                  <option value="true">Rápida (Instantânea)</option>
+                </select>
+              </div>
             </div>
 
             <button 

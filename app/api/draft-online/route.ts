@@ -64,6 +64,17 @@ export async function PUT(req: Request) {
     if (roomError || !room) throw new Error('Sala não encontrada.');
     if (room.status !== 'lobby') throw new Error('A partida já começou.');
 
+    // Verificar Limite de Jogadores
+    const { count: playerCount, error: countError } = await supabaseAdmin
+      .from('draft_room_players')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', room.id);
+
+    if (countError) throw countError;
+    if (playerCount !== null && playerCount >= 16) {
+      throw new Error('A sala está cheia! (Limite: 16 jogadores).');
+    }
+
     const { data: player, error: playerError } = await supabaseAdmin
       .from('draft_room_players')
       .insert({

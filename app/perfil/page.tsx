@@ -73,6 +73,11 @@ export default function PerfilPage() {
   const goalDiff = draftTotalGoals - draftGoalsConceded;
   const draftsPlayed = saves.length;
 
+  // Badges
+  const hasStreak = displayStreak >= 7;
+  const hasMultiplayer = draftTotalMatches > 0;
+  const hasPuzzle30 = completedPuzzles >= 30;
+
   // Activity Grid (Last 14 days)
   const last14Days = Array.from({ length: 14 }).map((_, i) => {
     const d = new Date();
@@ -316,7 +321,7 @@ export default function PerfilPage() {
                         </div>
                         <div className="flex flex-col items-end">
                           <span className={`font-bold text-sm ${isCamp ? 'text-yellow-500' : 'text-primary'}`}>
-                            {save.is_champion ? 'Campeão' : (save.mode === 'brasileirao' || save.mode === 'liga') ? `${save.competition_state?.teams?.find((t) => t.id === 'player')?.stats?.pts || 0} pts` : 'Eliminado'}
+                            {save.is_champion ? 'Campeão' : (save.mode === 'brasileirao' || save.mode === 'liga') ? `${save.competition_state?.teams?.find((t: any) => t.id === 'player')?.stats?.pts || 0} pts` : 'Eliminado'}
                           </span>
                         </div>
                       </div>
