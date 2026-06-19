@@ -9,6 +9,7 @@ interface DashboardStats {
   totalDrafts: number;
   totalGoals: number;
   activeSaves: number;
+  onlinePlayers: number;
 }
 
 export default function AdminDashboard() {
@@ -16,7 +17,8 @@ export default function AdminDashboard() {
     totalUsers: 0,
     totalDrafts: 0,
     totalGoals: 0,
-    activeSaves: 0
+    activeSaves: 0,
+    onlinePlayers: 0
   });
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ export default function AdminDashboard() {
     async function loadStats() {
       try {
         // Obter número de usuários e agregar estatísticas
-        const { data: profiles, error: err1 } = await supabase.from('profiles').select('id, name, draft_total_matches, draft_total_goals, created_at');
+        const { data: profiles, error: err1 } = await supabase.from('profiles').select('id, name, draft_total_matches, draft_total_goals, updated_at');
         
         let totalDrafts = 0;
         let totalGoals = 0;
@@ -48,31 +50,35 @@ export default function AdminDashboard() {
           .order('created_at', { ascending: false })
           .limit(10);
 
+        // Obter as pessoas em salas multiplayer (proxy para online)
+        const { data: roomPlayers } = await supabase.from('draft_room_players').select('id');
+
         setStats({
           totalUsers: profiles?.length || 0,
           totalDrafts,
           totalGoals,
-          activeSaves: activeSavesCount
+          activeSaves: activeSavesCount,
+          onlinePlayers: roomPlayers?.length || 0
         });
 
         // Montar a timeline de atividades
         let feed: any[] = [];
         
-        // Novos Usuários
+        // Usuários Ativos (Logaram Recentemente)
         if (profiles) {
-          const newUsers = profiles
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          const activeUsers = profiles
+            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
             .slice(0, 10)
             .map(p => ({
               id: `user_${p.id}`,
               type: 'new_user',
-              title: 'Novo Jogador Registrado',
-              desc: `${p.name} acabou de se cadastrar no Entrosa.`,
-              time: p.created_at,
+              title: 'Atividade de Jogador',
+              desc: `${p.name} logou recentemente no Entrosa.`,
+              time: p.updated_at,
               icon: Users,
               color: 'text-green-400 bg-green-400/20'
             }));
-          feed = [...feed, ...newUsers];
+          feed = [...feed, ...activeUsers];
         }
 
         // Saves Atualizados
@@ -142,31 +148,12 @@ export default function AdminDashboard() {
         <p className="text-slate-400">Métricas e estatísticas em tempo real da base de jogadores.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total de Jogadores" 
-          value={stats.totalUsers} 
-          icon={Users} 
-          color="bg-blue-600" 
-        />
-        <StatCard 
-          title="Drafts Jogados" 
-          value={stats.totalDrafts} 
-          icon={Trophy} 
-          color="bg-amarelo-gol" 
-        />
-        <StatCard 
-          title="Gols Marcados" 
-          value={stats.totalGoals} 
-          icon={Target} 
-          color="bg-green-500" 
-        />
-        <StatCard 
-          title="Saves em Andamento" 
-          value={stats.activeSaves} 
-          icon={Activity} 
-          color="bg-purple-500" 
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        <StatCard title="Total de Jogadores" value={stats.totalUsers} icon={Users} color="bg-blue-500/10" />
+        <StatCard title="Jogadores Online" value={stats.onlinePlayers} icon={Activity} color="bg-green-500/10" />
+        <StatCard title="Drafts Jogados" value={stats.totalDrafts} icon={Trophy} color="bg-amarelo-gol/10" />
+        <StatCard title="Gols Marcados" value={stats.totalGoals} icon={Target} color="bg-green-500/10" />
+        <StatCard title="Saves em Andamento" value={stats.activeSaves} icon={Activity} color="bg-purple-500/10" />
       </div>
 
       <div className="mt-12 bg-[#040b1c] border border-blue-900/30 rounded-2xl p-8">
