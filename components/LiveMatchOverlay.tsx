@@ -56,16 +56,26 @@ export function LiveMatchOverlay({ match, minute, homeTeam, awayTeam, onClose }:
   const finalHomeStats = match.stats?.player || { possession: 50, shots: 0, shotsOnTarget: 0 };
   const finalAwayStats = match.stats?.opponent || { possession: 50, shots: 0, shotsOnTarget: 0 };
 
-  const currentHomePossession = 50 + (finalHomeStats.possession - 50) * Math.pow(progress, 0.5);
+  const baseTrend = 50 + (finalHomeStats.possession - 50) * Math.pow(progress, 0.5);
+  const fluctuation = Math.sin(minute * 0.8) * 4 + Math.cos(minute * 1.5) * 2;
+  
+  let momentum = 0;
+  const upcomingEvent = match.events?.find((e: any) => e.minute >= minute && e.minute <= minute + 3);
+  const recentEvent = match.events?.find((e: any) => e.minute < minute && e.minute >= minute - 2);
+
+  if (recentEvent) {
+    momentum = recentEvent.team === 'player' ? 8 : -8;
+  } else if (upcomingEvent) {
+    momentum = upcomingEvent.team === 'player' ? 4 : -4;
+  }
+
+  let currentHomePossession = baseTrend + fluctuation + momentum;
+  currentHomePossession = Math.max(20, Math.min(80, currentHomePossession));
   const currentAwayPossession = 100 - currentHomePossession;
 
   // Calcula posição alvo da bola X e Y
   let targetBallX = 50;
   let targetBallY = 50;
-  
-  // Procura se tem algum evento prestes a acontecer (nos próximos 3 minutos) ou que acabou de acontecer
-  const upcomingEvent = match.events?.find((e: any) => e.minute >= minute && e.minute <= minute + 3);
-  const recentEvent = match.events?.find((e: any) => e.minute < minute && e.minute >= minute - 2);
 
   if (upcomingEvent) {
     // Bola progredindo para o ataque!
