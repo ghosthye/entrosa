@@ -50,8 +50,9 @@ export default function AdminDashboard() {
           .order('created_at', { ascending: false })
           .limit(10);
 
-        // Obter as pessoas em salas multiplayer (proxy para online)
-        const { data: roomPlayers } = await supabase.from('draft_room_players').select('id');
+        // Obter as pessoas em salas multiplayer criadas nas últimas 2 horas (proxy real para online)
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        const { data: roomPlayers } = await supabase.from('draft_room_players').select('id').gte('created_at', twoHoursAgo);
 
         setStats({
           totalUsers: profiles?.length || 0,
