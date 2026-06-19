@@ -1180,7 +1180,7 @@ export default function ArenaOnlinePage() {
                       }
                       
                       return (
-                        <div key={team.id} className={`flex flex-col bg-[#121612] rounded-2xl border ${isChampion ? 'border-amarelo-gol shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'border-white/10'} p-5 sm:p-6 relative overflow-hidden transition-all w-full max-w-[280px] flex-1`}>
+                        <div key={team.id} className={`flex flex-col bg-[#121612] rounded-2xl border ${isChampion ? 'border-amarelo-gol shadow-[0_0_20px_rgba(234,179,8,0.15)]' : 'border-white/10'} p-5 sm:p-6 relative overflow-hidden transition-all w-full min-w-[250px] max-w-[280px] flex-1 shrink-0`}>
                           {isChampion && <div className="absolute top-0 left-0 w-full h-1.5 bg-amarelo-gol"></div>}
                           
                           {/* Header do Card (Player info) */}
