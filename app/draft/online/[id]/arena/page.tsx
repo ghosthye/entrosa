@@ -282,11 +282,6 @@ export default function ArenaOnlinePage() {
       round_start_time: Date.now()
     };
 
-    setTeams(newTeams);
-    setMatches(newMatches);
-    setCurrentRound(roundToSimulate);
-    setScorersMap(newScorers);
-
     await supabase.from('draft_rooms').update({ competition_state: newState }).eq('id', roomId);
     setIsSimulating(false);
   }, [currentRound, isSimulating, matches, room, roomId, scorersMap, teams]);
@@ -473,16 +468,16 @@ export default function ArenaOnlinePage() {
     if (myPvPMatch) {
       activeOverlayMatch = myPvPMatch;
     } else {
-      // Se não, pega QUALQUER partida PvP da rodada para assistir como espectador
-      const anyPvPMatch = liveMatches.find(m => {
+      // Se não, pega QUALQUER partida com pelo menos 1 jogador real
+      const anyPlayerMatch = liveMatches.find(m => {
         const home = teams.find(t => t.id === m.homeId);
         const away = teams.find(t => t.id === m.awayId);
-        const homeIsReal = players.some(p => p.id === home?.id);
-        const awayIsReal = players.some(p => p.id === away?.id);
-        return homeIsReal && awayIsReal;
+        return players.some(p => p.id === home?.id) || players.some(p => p.id === away?.id);
       });
-      if (anyPvPMatch) {
-        activeOverlayMatch = anyPvPMatch;
+      if (anyPlayerMatch) {
+        activeOverlayMatch = anyPlayerMatch;
+      } else if (liveMatches.length > 0) {
+        activeOverlayMatch = liveMatches[0];
       }
     }
   }
@@ -547,7 +542,7 @@ export default function ArenaOnlinePage() {
                     {isAutoSimulating ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
                   </button>
                   <button 
-                    disabled={isAutoSimulating || currentRound >= totalRounds}
+                    disabled={isAutoSimulating || currentRound >= totalRounds || isSimulating || isVisualSimulating || liveMatchQueue.length > 0}
                     onClick={handleSimulateRoundHost}
                     className="flex items-center gap-1 h-10 px-4 bg-white/10 text-white rounded-xl font-bold text-xs disabled:opacity-50 hover:bg-white/20 transition-all border border-white/5"
                   >
@@ -730,7 +725,7 @@ export default function ArenaOnlinePage() {
                 const homeIsReal = players.some(p => p.id === home?.id);
                 const awayIsReal = players.some(p => p.id === away?.id);
                 const isPlayerMatch = (home?.id === localPlayerId || away?.id === localPlayerId) && homeIsReal && awayIsReal;
-                const isLive = isVisualSimulating && currentLiveRound === m.round && isPlayerMatch;
+                const isLive = isVisualSimulating && currentLiveRound === m.round;
                 
                 if (!home || !away) return null;
 
@@ -765,9 +760,13 @@ export default function ArenaOnlinePage() {
                       
                       <div className="px-4">
                         <div className={`bg-black/80 px-4 py-2 rounded-lg font-display text-xl flex items-center gap-3 border min-w-[90px] justify-center shadow-inner ${isLive ? 'border-amarelo-gol/50' : 'border-white/10'}`}>
-                          <span className={displayHomeGoals! > displayAwayGoals! ? 'text-amarelo-gol' : 'text-white'}>{displayHomeGoals ?? '-'}</span>
+                          <span className={`${isLive ? 'text-amarelo-gol animate-pulse' : 'text-white'}`}>
+                            {isLive ? '?' : (m.simulated ? displayHomeGoals : '-')}
+                          </span>
                           <span className={`${isLive ? 'text-amarelo-gol/50 animate-pulse' : 'text-white/20'} text-sm`}>X</span>
-                          <span className={displayAwayGoals! > displayHomeGoals! ? 'text-amarelo-gol' : 'text-white'}>{displayAwayGoals ?? '-'}</span>
+                          <span className={`${isLive ? 'text-amarelo-gol animate-pulse' : 'text-white'}`}>
+                            {isLive ? '?' : (m.simulated ? displayAwayGoals : '-')}
+                          </span>
                         </div>
                       </div>
 
