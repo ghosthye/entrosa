@@ -507,7 +507,7 @@ export default function ArenaOnlinePage() {
             <h2 className="font-display text-sm tracking-widest text-white/80">SIMULAÇÃO DE TEMPORADA</h2>
           </div>
           <div className="flex items-center gap-2">
-            {isHost && (
+            {isHost && !isFinal && (
               <div className="relative group">
                 <button className="flex items-center gap-1 bg-black/40 px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-white/70 hover:text-white">
                   <Zap size={14} className={simSpeed === 1000 ? 'text-amarelo-gol' : ''} />
@@ -534,13 +534,15 @@ export default function ArenaOnlinePage() {
             <div className="flex gap-2">
               {isHost ? (
                 <>
-                  <button 
-                    disabled={currentRound >= totalRounds}
-                    onClick={() => setIsAutoSimulating(!isAutoSimulating)}
-                    className={`flex items-center justify-center w-12 h-10 rounded-xl transition-all ${isAutoSimulating ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-amarelo-gol text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]'} disabled:opacity-50 disabled:bg-zinc-800 disabled:text-white/50`}
-                  >
-                    {isAutoSimulating ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                  </button>
+                  {!isFinal && (
+                    <button 
+                      disabled={currentRound >= totalRounds}
+                      onClick={() => setIsAutoSimulating(!isAutoSimulating)}
+                      className={`flex items-center justify-center w-12 h-10 rounded-xl transition-all ${isAutoSimulating ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-amarelo-gol text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]'} disabled:opacity-50 disabled:bg-zinc-800 disabled:text-white/50`}
+                    >
+                      {isAutoSimulating ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                    </button>
+                  )}
                   <button 
                     disabled={isAutoSimulating || currentRound >= totalRounds || isSimulating || isVisualSimulating || liveMatchQueue.length > 0}
                     onClick={handleSimulateRoundHost}
