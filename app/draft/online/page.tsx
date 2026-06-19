@@ -219,7 +219,7 @@ export default function DraftOnlinePage() {
 
             <button 
               type="submit"
-              disabled={!name.trim() || isCreating}
+              disabled={!name.trim() || !teamName.trim() || isCreating}
               className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl py-4 rounded-xl uppercase tracking-wider transition-transform active:scale-95 disabled:opacity-50"
             >
               {isCreating ? "Criando Sala..." : "Criar Nova Sala"}
@@ -242,7 +242,7 @@ export default function DraftOnlinePage() {
             
             <button 
               type="submit"
-              disabled={!name.trim() || shortCode.length !== 6 || isJoining}
+              disabled={!name.trim() || !teamName.trim() || shortCode.length !== 6 || isJoining}
               className="w-full mt-4 bg-amarelo-gol hover:bg-yellow-400 text-black font-bold text-xl py-4 rounded-xl uppercase tracking-wider transition-transform active:scale-95 disabled:opacity-50"
             >
               {isJoining ? "Entrando..." : "Entrar na Sala"}
