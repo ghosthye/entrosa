@@ -276,6 +276,20 @@ export default function DraftOnlineClient() {
     router.push('/draft/online');
   };
 
+  const handleDebugFill = () => {
+    setSlots(prev => prev.map((s, i) => ({
+      ...s,
+      player: {
+        id: `debug-${i}`,
+        name: `Debug Player ${i}`,
+        face_url: null,
+        position: s.label,
+        shirtNumber: i + 1,
+        overall: 80 + Math.floor(Math.random() * 10)
+      }
+    })));
+  };
+
   return (
     <main className="min-h-screen bg-[var(--bg-background)] flex flex-col items-center">
       <Header />
@@ -299,6 +313,11 @@ export default function DraftOnlineClient() {
               ))}
             </div>
           </div>
+          
+          <button onClick={handleDebugFill} className="w-full bg-red-600/20 text-red-500 border border-red-500/50 rounded-xl py-2 font-bold uppercase text-xs hover:bg-red-600/40 transition-colors">
+            Debug: Preencher Elenco
+          </button>
+
 
           {isReady ? (
             <div className="bg-surface border border-amarelo-gol rounded-2xl p-6 shadow-[0_0_30px_rgba(255,214,0,0.15)] text-center">

@@ -37,6 +37,7 @@ export interface LeagueMatch {
   simulated: boolean;
   events?: any[];
   penalties?: PenaltyShootout;
+  stats?: MatchResult['stats'];
 }
 
 /**

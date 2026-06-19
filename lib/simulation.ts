@@ -24,11 +24,21 @@ export interface PenaltyShootout {
   winner: 'player' | 'opponent';
 }
 
+export interface MatchStats {
+  possession: number;
+  shots: number;
+  shotsOnTarget: number;
+}
+
 export interface MatchResult {
   playerGoals: number;
   opponentGoals: number;
   events: MatchEvent[];
   penalties?: PenaltyShootout;
+  stats?: {
+    player: MatchStats;
+    opponent: MatchStats;
+  };
 }
 
 function getRandomScorer(names: string[], positions?: string[]): string {
@@ -173,5 +183,24 @@ export function simulateMatch(
     };
   }
 
-  return { playerGoals, opponentGoals, events, penalties };
+  // Generate stats based on events and ovr difference
+  const playerAttacks = events.filter(e => e.team === 'player').length;
+  const opponentAttacks = events.filter(e => e.team === 'opponent').length;
+
+  let pPossession = 50 + (diff * 0.4);
+  pPossession = Math.round(Math.max(35, Math.min(65, pPossession)) + (Math.random() * 6 - 3));
+  const oPossession = 100 - pPossession;
+
+  const pShots = Math.max(playerGoals, playerAttacks + Math.floor(Math.random() * 4));
+  const oShots = Math.max(opponentGoals, opponentAttacks + Math.floor(Math.random() * 4));
+
+  const pShotsOnTarget = Math.max(playerGoals, Math.floor(pShots * (0.35 + Math.random() * 0.3)));
+  const oShotsOnTarget = Math.max(opponentGoals, Math.floor(oShots * (0.35 + Math.random() * 0.3)));
+
+  const stats = {
+    player: { possession: pPossession, shots: pShots, shotsOnTarget: pShotsOnTarget },
+    opponent: { possession: oPossession, shots: oShots, shotsOnTarget: oShotsOnTarget }
+  };
+
+  return { playerGoals, opponentGoals, events, penalties, stats };
 }

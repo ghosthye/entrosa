@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
-import { X, Play, Trophy, FastForward, List, Pause, SkipForward, User, CheckCircle2, Download, Swords, Users, Home, Settings, ChevronDown, ChevronUp, Zap, History } from 'lucide-react';
+import { X, Play, Trophy, FastForward, List, Pause, SkipForward, User, CheckCircle2, Download, Swords, Users, Home, Settings, ChevronDown, ChevronUp, Zap, History, ChevronRight, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LeagueTeam, 
@@ -16,6 +16,7 @@ import {
   getTopScorers
 } from '@/lib/leagueSimulation';
 import { Field, FormationNode } from '@/components/Field';
+import { LiveMatchOverlay } from '@/components/LiveMatchOverlay';
 import html2canvas from 'html2canvas';
 
 const generateCpuTeams = async (count: number, leagueId: number = 39): Promise<LeagueTeam[]> => {
@@ -259,7 +260,9 @@ export default function ArenaOnlinePage() {
           awayGoals: result.opponentGoals,
           homeScorers: result.events.filter(e => e.team === 'player' && e.type === 'goal').map(e => e.scorerName!),
           awayScorers: result.events.filter(e => e.team === 'opponent' && e.type === 'goal').map(e => e.scorerName!),
-          events: result.events
+          events: result.events,
+          penalties: result.penalties,
+          stats: result.stats
         };
       }
     });
@@ -275,7 +278,8 @@ export default function ArenaOnlinePage() {
       totalRounds: room?.competition_state?.totalRounds || 38,
       teams: newTeams,
       matches: newMatches,
-      scorersMap: newScorers
+      scorersMap: newScorers,
+      round_start_time: Date.now()
     };
 
     setTeams(newTeams);
@@ -358,20 +362,26 @@ export default function ArenaOnlinePage() {
   // Timer do Jogo
   useEffect(() => {
     if (isVisualSimulating) {
+      // Se for a rodada atual rolando ao vivo, usamos o round_start_time para sincronizar.
+      // Se for uma rodada antiga, simulamos localmente do zero pra exibir.
+      const isCurrentRound = currentLiveRound === room?.competition_state?.currentRound;
+      const startTime = isCurrentRound && room?.competition_state?.round_start_time ? room.competition_state.round_start_time : Date.now();
+      
       const interval = setInterval(() => {
-        setMatchMinute(prev => {
-          if (prev >= 90) {
+        setMatchMinute(() => {
+          const elapsed = Date.now() - startTime;
+          const currentMin = Math.max(0, Math.floor(elapsed / 333));
+          
+          if (currentMin >= 90) {
             clearInterval(interval);
-            setIsVisualSimulating(false);
-            setCurrentLiveRound(null);
             return 90;
           }
-          return prev + 1;
+          return currentMin;
         });
       }, 333); // ~30s reais = 90 minutos
       return () => clearInterval(interval);
     }
-  }, [isVisualSimulating]);
+  }, [isVisualSimulating, currentLiveRound, room?.competition_state?.currentRound, room?.competition_state?.round_start_time]);
 
   const hasShownSummaryRef = useRef(false);
 
@@ -447,9 +457,52 @@ export default function ArenaOnlinePage() {
     router.push('/draft/online');
   };
 
+  let activeOverlayMatch = null;
+  if (isVisualSimulating && currentLiveRound) {
+    const liveMatches = matches.filter(m => m.round === currentLiveRound);
+    
+    // Procura primeiro se há um jogo do localPlayerId que seja PvP real
+    const myPvPMatch = liveMatches.find(m => {
+      const home = teams.find(t => t.id === m.homeId);
+      const away = teams.find(t => t.id === m.awayId);
+      const homeIsReal = players.some(p => p.id === home?.id);
+      const awayIsReal = players.some(p => p.id === away?.id);
+      return (home?.id === localPlayerId || away?.id === localPlayerId) && homeIsReal && awayIsReal;
+    });
+
+    if (myPvPMatch) {
+      activeOverlayMatch = myPvPMatch;
+    } else {
+      // Se não, pega QUALQUER partida PvP da rodada para assistir como espectador
+      const anyPvPMatch = liveMatches.find(m => {
+        const home = teams.find(t => t.id === m.homeId);
+        const away = teams.find(t => t.id === m.awayId);
+        const homeIsReal = players.some(p => p.id === home?.id);
+        const awayIsReal = players.some(p => p.id === away?.id);
+        return homeIsReal && awayIsReal;
+      });
+      if (anyPvPMatch) {
+        activeOverlayMatch = anyPvPMatch;
+      }
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0f110f] font-sans text-white h-[100dvh] overflow-hidden">
       
+      {activeOverlayMatch && (
+        <LiveMatchOverlay 
+          match={activeOverlayMatch}
+          minute={matchMinute}
+          homeTeam={teams.find(t => t.id === activeOverlayMatch!.homeId)}
+          awayTeam={teams.find(t => t.id === activeOverlayMatch!.awayId)}
+          onClose={() => {
+            setIsVisualSimulating(false);
+            setCurrentLiveRound(null);
+          }}
+        />
+      )}
+
       {/* HEADER: Top Simulation Bar */}
       <div className="flex flex-col bg-[#161a16] border-b border-white/10 shrink-0 z-20">
         {/* Title & Speed */}
@@ -530,6 +583,25 @@ export default function ArenaOnlinePage() {
         {activeTab === 'TABELA' && (
           <div className="p-4 flex flex-col gap-6">
             
+            {/* NOVO BANNER FIM DE TEMPORADA */}
+            {currentRound >= totalRounds && totalRounds > 0 && (
+              <button 
+                onClick={() => setShowSummary(true)}
+                className="w-full bg-gradient-to-r from-amarelo-gol/20 to-amarelo-gol/5 border border-amarelo-gol/30 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_20px_rgba(234,179,8,0.1)] hover:scale-[1.02] transition-transform animate-fade-in-down"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amarelo-gol/20 rounded-full flex items-center justify-center text-amarelo-gol">
+                    <Trophy size={20} />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-amarelo-gol font-bold text-sm tracking-widest uppercase">Temporada Encerrada</span>
+                    <span className="text-white/60 text-xs">Clique para ver o resumo final do seu time</span>
+                  </div>
+                </div>
+                <ChevronRight className="text-amarelo-gol" />
+              </button>
+            )}
+
             {/* Classificação */}
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -959,17 +1031,49 @@ export default function ArenaOnlinePage() {
 
       {/* END OF SEASON SUMMARY MODAL OVERLAY (WIDESCREEN DASHBOARD) */}
       <AnimatePresence>
-        {(currentRound === totalRounds && totalRounds > 0 && showSummary) && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md"
-          >
-            <button onClick={() => setShowSummary(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-[100] shadow-lg backdrop-blur-sm cursor-pointer">
-              <X size={24} />
-            </button>
-            <div className="w-full h-full overflow-y-auto custom-scrollbar flex flex-col items-center justify-start p-4 sm:p-8 py-12">
+        {(currentRound === totalRounds && totalRounds > 0 && showSummary) && (() => {
+          // Calcula estatísticas locais (do usuário logado)
+          const myTeam = teams.find(t => t.id === localPlayerId);
+          let cleanSheets = 0;
+          let biggestWinDiff = -1;
+          let biggestWinScore = '';
+          let biggestWinOpponent = '';
+          
+          matches.filter(m => m.homeId === localPlayerId || m.awayId === localPlayerId).forEach(m => {
+            if (!m.simulated) return;
+            const isHome = m.homeId === localPlayerId;
+            const myGoals = (isHome ? m.homeGoals : m.awayGoals) ?? 0;
+            const oppGoals = (isHome ? m.awayGoals : m.homeGoals) ?? 0;
+            
+            if (oppGoals === 0) cleanSheets++;
+            
+            if (myGoals > oppGoals) {
+              const diff = myGoals - oppGoals;
+              if (diff > biggestWinDiff || (diff === biggestWinDiff && myGoals > parseInt(biggestWinScore.split('x')[0] || '0'))) {
+                biggestWinDiff = diff;
+                biggestWinScore = `${myGoals}x${oppGoals}`;
+                biggestWinOpponent = isHome ? teams.find(t => t.id === m.awayId)?.name || 'Adversário' : teams.find(t => t.id === m.homeId)?.name || 'Adversário';
+              }
+            }
+          });
+
+          const myScorers = Object.values(scorersMap).filter((s: any) => s.teamId === localPlayerId).sort((a: any, b: any) => b.goals - a.goals);
+          const myCraque = myScorers[0];
+          const myTotalMatches = (myTeam?.stats.v || 0) + (myTeam?.stats.e || 0) + (myTeam?.stats.d || 0);
+          const myWinRate = myTotalMatches > 0 ? Math.round(((myTeam!.stats.pts) / (myTotalMatches * 3)) * 100) : 0;
+          const myPosition = standings.findIndex(t => t.id === localPlayerId) + 1;
+
+          return (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md"
+            >
+              <button onClick={() => setShowSummary(false)} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-[100] shadow-lg backdrop-blur-sm cursor-pointer">
+                <X size={24} />
+              </button>
+              <div className="w-full h-full overflow-y-auto custom-scrollbar flex flex-col items-center justify-start p-4 sm:p-8 py-12">
               <div className="w-full max-w-6xl relative flex flex-col items-center mt-8">
               
               {/* Card Exportável Widescreen */}
@@ -1001,6 +1105,64 @@ export default function ArenaOnlinePage() {
                     </div>
                   </div>
                 </div>
+
+                {/* 1.5. MEU DESEMPENHO NA TEMPORADA */}
+                {myTeam && (
+                  <div className="relative z-10 p-6 sm:p-10 border-b border-white/5 bg-[#121612]/50">
+                    <h3 className="text-[10px] text-amarelo-gol font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
+                      <Star size={14} /> Seu Desempenho na Temporada
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                       {/* Box 1: Campanha */}
+                       <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+                          <div className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Campanha</div>
+                          <div className="text-3xl font-display text-white">{myPosition}º <span className="text-sm text-white/40 font-sans ml-1">Lugar</span></div>
+                          <div className="text-xs font-bold text-verde-grama mt-1">{myWinRate}% de aprov.</div>
+                          <div className="flex gap-2 mt-2 text-[10px] text-white/50 font-mono">
+                            <span>{myTeam.stats.v}V</span>
+                            <span>{myTeam.stats.e}E</span>
+                            <span>{myTeam.stats.d}D</span>
+                          </div>
+                       </div>
+                       
+                       {/* Box 2: Defesa / Clean Sheets */}
+                       <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+                          <div className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Defesa Intransponível</div>
+                          <div className="text-3xl font-display text-white">{cleanSheets}</div>
+                          <div className="text-xs text-white/40 mt-1">Jogos sem sofrer gol</div>
+                          <div className="mt-2 text-[10px] text-red-400 font-mono">Total GC: {myTeam.stats.ga}</div>
+                       </div>
+
+                       {/* Box 3: Maior Goleada */}
+                       <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+                          <div className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Maior Goleada</div>
+                          {biggestWinDiff > 0 ? (
+                            <>
+                              <div className="text-3xl font-display text-amarelo-gol">{biggestWinScore}</div>
+                              <div className="text-xs text-white/70 mt-1 font-bold">vs {biggestWinOpponent}</div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-white/40 mt-4 italic">Nenhuma vitória registrada</div>
+                          )}
+                       </div>
+
+                       {/* Box 4: Craque do Time */}
+                       <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+                          <div className="text-[9px] text-white/40 uppercase tracking-widest mb-2">Artilheiro do Time</div>
+                          {myCraque ? (
+                            <>
+                              <div className="text-3xl font-display text-white">{myCraque.goals}</div>
+                              <div className="text-xs text-white/40 mt-1 mb-1">Gols marcados por</div>
+                              <div className="text-[10px] sm:text-xs font-bold text-verde-grama truncate w-full px-2">{myCraque.playerName}</div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-white/40 mt-4 italic">Nenhum gol marcado</div>
+                          )}
+                       </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 2. CLASSIFICAÇÃO FINAL (Top 4 Row) */}
                 <div className="relative z-10 p-6 sm:p-10 border-b border-white/5">
@@ -1194,7 +1356,8 @@ export default function ArenaOnlinePage() {
             </div>
             </div>
           </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
     </div>
